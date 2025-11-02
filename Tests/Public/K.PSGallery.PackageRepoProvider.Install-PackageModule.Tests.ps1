@@ -21,18 +21,18 @@ BeforeAll {
     $script:TestProviderName = "GitHub"
 }
 
-Describe 'Install-Package' -Tag 'Unit' {
+Describe 'Install-PackageModule' -Tag 'Unit' {
     Context 'Parameter Validation' {
         It 'Should have mandatory RepositoryName parameter' {
-            (Get-Command Install-Package).Parameters['RepositoryName'].Attributes.Mandatory | Should -Be $true
+            (Get-Command Install-PackageModule).Parameters['RepositoryName'].Attributes.Mandatory | Should -Be $true
         }
         
         It 'Should have mandatory ModuleName parameter' {
-            (Get-Command Install-Package).Parameters['ModuleName'].Attributes.Mandatory | Should -Be $true
+            (Get-Command Install-PackageModule).Parameters['ModuleName'].Attributes.Mandatory | Should -Be $true
         }
         
         It 'Should have mandatory Credential parameter' {
-            (Get-Command Install-Package).Parameters['Credential'].Attributes.Mandatory | Should -Be $true
+            (Get-Command Install-PackageModule).Parameters['Credential'].Attributes.Mandatory | Should -Be $true
         }
     }
 
@@ -66,7 +66,7 @@ Describe 'Install-Package' -Tag 'Unit' {
                     Credential = [pscredential]::new('user', (ConvertTo-SecureString 'pass' -AsPlainText -Force))
                 }
                 
-                { Install-Package @params } | Should -Not -Throw
+                { Install-PackageModule @params } | Should -Not -Throw
             }
         }
     }
@@ -102,7 +102,7 @@ Describe 'Install-Package' -Tag 'Unit' {
                     ImportAfterInstall = $true
                 }
                 
-                Install-Package @params
+                Install-PackageModule @params
                 Should -Invoke Import-PackageModule -Times 1
             }
         }

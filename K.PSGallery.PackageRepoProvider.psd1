@@ -18,7 +18,7 @@
     FunctionsToExport = @(
         'Register-PackageRepo',
         'Publish-Package',
-        'Install-Package',
+        'Install-PackageModule',
         'Import-PackageModule',
         'Remove-PackageRepo',
         'Get-PackageRepoProvider'

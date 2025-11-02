@@ -23,8 +23,10 @@ Describe 'Publish-Package' {
             (Get-Command Publish-Package).Parameters['RepositoryName'].Attributes.Mandatory | Should -Be $true
         }
         
-        It 'Should have mandatory Credential parameter' {
-            (Get-Command Publish-Package).Parameters['Credential'].Attributes.Mandatory | Should -Be $true
+        It 'Should have Credential parameter mandatory in Credential parameter sets' {
+            $credentialParam = (Get-Command Publish-Package).Parameters['Credential']
+            $mandatoryAttributes = $credentialParam.Attributes | Where-Object { $_.Mandatory -eq $true }
+            $mandatoryAttributes.Count | Should -BeGreaterThan 0
         }
     }
     

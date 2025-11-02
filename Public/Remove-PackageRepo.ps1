@@ -14,8 +14,18 @@ function Remove-PackageRepo {
         Remove-PackageRepo -RepositoryName 'MyGitHub'
         
         Removes the MyGitHub repository.
+    
+    .EXAMPLE
+        Remove-PackageRepo -RepositoryName 'MyGitHub' -WhatIf
+        
+        Shows what would happen if the repository was removed (without actually removing it).
+    
+    .EXAMPLE
+        Remove-PackageRepo -RepositoryName 'MyGitHub' -Confirm:$false
+        
+        Removes the repository without confirmation prompt.
     #>
-    [CmdletBinding()]
+    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'High')]
     param(
         [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
@@ -29,16 +39,19 @@ function Remove-PackageRepo {
         # 2. Load provider module
         $providerModule = Get-RepoProvider -Provider $provider
         
-        # 3. Route to provider backend
-        $invokeCommand = "$($providerModule.Name)\Invoke-RemoveRepo"
-        & $invokeCommand @PSBoundParameters
-        
-        # 4. Clean up provider registry
-        if ($Script:ProviderRegistry -and $Script:ProviderRegistry.ContainsKey($RepositoryName)) {
-            $Script:ProviderRegistry.Remove($RepositoryName)
+        # 3. ShouldProcess confirmation
+        if ($PSCmdlet.ShouldProcess($RepositoryName, "Remove package repository")) {
+            # 4. Route to provider backend
+            $invokeCommand = "$($providerModule.Name)\Invoke-RemoveRepo"
+            & $invokeCommand @PSBoundParameters
+            
+            # 5. Clean up provider registry
+            if ($Script:ProviderRegistry -and $Script:ProviderRegistry.ContainsKey($RepositoryName)) {
+                $Script:ProviderRegistry.Remove($RepositoryName)
+            }
+            
+            Write-Verbose "Successfully removed repository '$RepositoryName' using $provider provider"
         }
-        
-        Write-Verbose "Successfully removed repository '$RepositoryName' using $provider provider"
     }
     catch {
         throw
