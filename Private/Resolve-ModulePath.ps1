@@ -44,7 +44,7 @@ function Resolve-ModulePath {
     $allPsd1Files = Get-ChildItem -Path $currentLocation -Filter '*.psd1' -File -ErrorAction SilentlyContinue
     
     if ($allPsd1Files.Count -eq 0) {
-        throw "No .psd1 files found in current directory: $currentLocation"
+        throw "No module manifest found in current directory: $currentLocation"
     }
     
     Write-SafeDebugLog -Message "Found $($allPsd1Files.Count) .psd1 file(s), validating module manifests..." -Additional @{
