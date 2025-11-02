@@ -56,7 +56,8 @@ jobs:
       - name: Publish to PowerShell Gallery
         shell: pwsh
         env:
-          PSGALLERY_API_KEY: ${{ secrets.PSGALLERY_API_KEY }}
+          # use github token as PSGALLERY_API_KEY
+          PSGALLERY_API_KEY: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if (-not $env:PSGALLERY_API_KEY) {
             throw "PSGALLERY_API_KEY secret is not set"
