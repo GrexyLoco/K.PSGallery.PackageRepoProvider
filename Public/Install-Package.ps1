@@ -6,6 +6,8 @@ function Install-Package {
     .DESCRIPTION
         Installs a PowerShell module from a registered package registry.
         Supports flexible version specifications (v1, 1.2, 1.2.3, Latest).
+        
+        Supports both PSCredential objects and token-based authentication for CI/CD scenarios.
     
     .PARAMETER RepositoryName
         The name of the registered repository.
@@ -21,7 +23,11 @@ function Install-Package {
         - Empty/null - Latest version
     
     .PARAMETER Credential
-        Credentials for authenticating with the registry.
+        PSCredential object for authenticating with the registry. Use this for interactive scenarios.
+    
+    .PARAMETER Token
+        Personal Access Token (PAT) or API token for authenticating with the registry.
+        Use this for CI/CD scenarios where you have a token stored in secrets.
     
     .PARAMETER Scope
         Installation scope: CurrentUser or AllUsers.
@@ -36,12 +42,17 @@ function Install-Package {
         Installs the latest version of MyModule.
     
     .EXAMPLE
+        Install-Package -RepositoryName 'MyGitHub' -ModuleName 'MyModule' -Token $env:GITHUB_TOKEN
+        
+        Installs the latest version using a token from environment variable (CI/CD scenario).
+    
+    .EXAMPLE
         $cred = Get-Credential
         Install-Package -RepositoryName 'MyGitHub' -ModuleName 'MyModule' -Version '1.2' -Credential $cred -ImportAfterInstall
         
         Installs the latest 1.2.x version and imports it.
     #>
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'Credential')]
     param(
         [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
@@ -54,9 +65,13 @@ function Install-Package {
         [Parameter()]
         [string]$Version,
 
-        [Parameter(Mandatory)]
+        [Parameter(Mandatory, ParameterSetName = 'Credential')]
         [ValidateNotNull()]
         [pscredential]$Credential,
+
+        [Parameter(Mandatory, ParameterSetName = 'Token')]
+        [ValidateNotNullOrEmpty()]
+        [string]$Token,
 
         [Parameter()]
         [ValidateSet('CurrentUser', 'AllUsers')]
@@ -66,6 +81,12 @@ function Install-Package {
         [switch]$ImportAfterInstall
     )
     
+    # Convert Token to PSCredential if provided
+    if ($PSCmdlet.ParameterSetName -eq 'Token') {
+        $secureToken = ConvertTo-SecureString -String $Token -AsPlainText -Force
+        $Credential = New-Object System.Management.Automation.PSCredential('token', $secureToken)
+    }
+    
     # 1. Get provider from registered repository
     $provider = Get-RegisteredRepoProvider -RepositoryName $RepositoryName
     
@@ -73,10 +94,24 @@ function Install-Package {
     $providerModule = Get-RepoProvider -Provider $provider
     
     # 3. Route to provider backend
-    $invokeCommand = "$($providerModule.Name)\Invoke-Install"
-    & $invokeCommand @PSBoundParameters
+    # Build parameters for provider (always pass Credential, not Token)
+    $providerParams = @{
+        RepositoryName = $RepositoryName
+        ModuleName = $ModuleName
+        Credential = $Credential
+        Scope = $Scope
+    }
+    if ($Version) {
+        $providerParams['Version'] = $Version
+    }
+    if ($ImportAfterInstall) {
+        $providerParams['ImportAfterInstall'] = $true
+    }
     
-    # 4. Optional: Auto-import
+    $invokeCommand = "$($providerModule.Name)\Invoke-Install"
+    & $invokeCommand @providerParams
+    
+    # 4. Optional: Auto-import (if provider didn't handle it)
     if ($ImportAfterInstall) {
         Import-PackageModule -ModuleName $ModuleName
     }

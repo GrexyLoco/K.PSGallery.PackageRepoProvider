@@ -15,5 +15,4 @@ foreach ($import in @($Public + $Private)) {
     }
 }
 
-# Export public functions
-Export-ModuleMember -Function $Public.BaseName
+# Note: Function exports are defined in the module manifest (.psd1) via FunctionsToExport
