@@ -14,7 +14,11 @@
     #         ModuleVersion = '0.1.0'
     #     }
     # )
-    
+
+    # Script files (.ps1) that are run in the caller's environment prior to importing this module.
+    # SafeLogging.ps1 provides logging abstraction and must be loaded before the main module
+    ScriptsToProcess = @('Private/SafeLogging.ps1')
+
     FunctionsToExport = @(
         'Register-PackageRepo',
         'Publish-Package',

@@ -122,5 +122,9 @@ function Install-PackageModule {
         Import-PackageModule -ModuleName $ModuleName
     }
     
-    Write-Verbose "Successfully installed package '$ModuleName' from repository '$RepositoryName' using $provider provider"
+    Write-SafeInfoLog -Message "Successfully installed package '$ModuleName' from repository '$RepositoryName' using $provider provider" -Additional @{
+        Module = $ModuleName
+        Repository = $RepositoryName
+        Provider = $provider
+    }
 }

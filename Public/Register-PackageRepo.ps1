@@ -105,7 +105,11 @@ function Register-PackageRepo {
         $invokeCommand = "$($providerModule.Name)\Invoke-RegisterRepo"
         & $invokeCommand @providerParams
         
-        Write-Verbose "Successfully registered repository '$RepositoryName' using $provider provider"
+        Write-SafeInfoLog -Message "Successfully registered repository '$RepositoryName' using $provider provider" -Additional @{
+            Repository = $RepositoryName
+            Provider = $provider
+            Uri = $Uri
+        }
     }
     catch {
         # Clean up provider registry on failure

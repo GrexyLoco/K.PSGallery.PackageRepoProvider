@@ -104,5 +104,9 @@ function Publish-Package {
     $invokeCommand = "$($providerModule.Name)\Invoke-Publish"
     & $invokeCommand @providerParams
     
-    Write-Verbose "Successfully published package to repository '$RepositoryName' using $provider provider"
+    Write-SafeInfoLog -Message "Successfully published package to repository '$RepositoryName' using $provider provider" -Additional @{
+        Repository = $RepositoryName
+        Provider = $provider
+        Path = $Path
+    }
 }
