@@ -61,7 +61,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: GrexyLoco/K.PSGallery.PackageRepoProvider.GitHub
-          path: ../K.PSGallery.PackageRepoProvider.GitHub
+          path: K.PSGallery.PackageRepoProvider.GitHub
           token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Setup PowerShell
@@ -157,7 +157,7 @@ jobs:
             Write-Host "   ℹ️  Using current Git checkout (self-hosting)"
             
             # Bootstrap: Make provider available for Get-RepoProvider
-            $gitHubProviderPath = "../K.PSGallery.PackageRepoProvider.GitHub"
+            $gitHubProviderPath = "./K.PSGallery.PackageRepoProvider.GitHub"
             if (-not (Test-Path "$gitHubProviderPath/K.PSGallery.PackageRepoProvider.GitHub.psd1")) {
               throw "❌ GitHub provider module not found at $gitHubProviderPath (checkout failed)"
             }
