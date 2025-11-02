@@ -23,6 +23,7 @@ function Get-PackageRepoProvider {
     [CmdletBinding()]
     param(
         [Parameter()]
+        [ValidateSet('GitHub', 'GitLab')]
         [string]$Name
     )
     
