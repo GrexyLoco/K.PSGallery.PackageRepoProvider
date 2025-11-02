@@ -23,7 +23,7 @@ function Get-RegisteredRepoProvider {
     )
     
     # Initialize module-scoped variable if not exists
-    if (-not (Get-Variable -Name 'Script:ProviderRegistry' -Scope Script -ErrorAction SilentlyContinue)) {
+    if (-not (Get-Variable -Name 'ProviderRegistry' -Scope Script -ErrorAction SilentlyContinue)) {
         $Script:ProviderRegistry = @{}
     }
     
