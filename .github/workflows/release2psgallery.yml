@@ -1,4 +1,23 @@
-name: Publish to PowerShell Gallery
+name: Build, Test & Publish to GitHub Packages
+
+# 🎯 Purpose: Self-publishing pipeline using PackageRepoProvider itself!
+# This workflow validates and publishes the module to GitHub Packages using its own logic.
+#
+# �🥚 Bootstrap Problem (Henne-Ei):
+# How to publish PackageRepoProvider using itself if it's not published yet?
+# Solution: Toggle between LOCAL Git checkout (bootstrap) and GitHub Packages (stable)
+#
+# 📋 Workflow Inputs:
+# - use-psgallery: Toggle PackageRepoProvider source (GitHub Packages vs LOCAL)
+#
+# 📋 Repository Variables (optional):
+# - USE_GITHUB_PACKAGES: Global default for module loading strategy
+#
+# 🔄 Module Loading Strategy:
+# - LOCAL (default):      Git checkout, bootstrap phase, breaking changes
+# - GitHub Packages:      Published version, stable, one-version-behind
+#
+# Note: GitHub Provider (K.PSGallery.PackageRepoProvider.GitHub) is ALWAYS from Git!
 
 on:
   release:
@@ -9,16 +28,41 @@ on:
         description: 'Version to publish'
         required: true
         type: string
+      use-psgallery:
+        description: 'Load PackageRepoProvider from GitHub Packages (vs LOCAL)'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  # 🔄 Module Loading Strategy (Bootstrap Pattern - Henne-Ei Problem)
+  # Question: How to publish PackageRepoProvider using itself if it's not published yet?
+  # 
+  # Controls where K.PSGallery.PackageRepoProvider is loaded from:
+  # - false/not set = LOCAL Git checkout (default, bootstrap phase, breaking changes)
+  # - true          = GitHub Packages (self-hosted, stable, one-version-behind)
+  # 
+  # Note: Only PackageRepoProvider itself is toggled, NOT the GitHub provider!
+  #       GitHub provider (K.PSGallery.PackageRepoProvider.GitHub) is always checked out.
+  USE_GITHUB_PACKAGES: ${{ inputs.use-psgallery || vars.USE_GITHUB_PACKAGES || 'false' }}
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      packages: write
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      
+      - name: Checkout GitHub Provider (always needed for internal routing)
+        uses: actions/checkout@v4
+        with:
+          repository: GrexyLoco/K.PSGallery.PackageRepoProvider.GitHub
+          path: K.PSGallery.PackageRepoProvider.GitHub
+          token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Setup PowerShell
         shell: pwsh
@@ -53,23 +97,82 @@ jobs:
           }
           Write-Host "✅ PSScriptAnalyzer passed!"
       
-      - name: Publish to PowerShell Gallery
+      - name: Publish to GitHub Packages
         shell: pwsh
         env:
-          # use github token as PSGALLERY_API_KEY
-          PSGALLERY_API_KEY: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if (-not $env:PSGALLERY_API_KEY) {
-            throw "PSGALLERY_API_KEY secret is not set"
+          if (-not $env:GITHUB_TOKEN) {
+            throw "GITHUB_TOKEN is not available"
           }
           
-          # Update version if manually triggered
-          if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
-            $version = '${{ inputs.version }}'
-            Write-Host "Updating version to $version"
-            # Update manifest version here if needed
+          # 📦 ALWAYS load GitHub Provider (internal routing logic)
+          $gitHubProviderPath = "./K.PSGallery.PackageRepoProvider.GitHub"
+          if (-not (Test-Path "$gitHubProviderPath/K.PSGallery.PackageRepoProvider.GitHub.psd1")) {
+            throw "❌ GitHub provider module not found at $gitHubProviderPath (checkout failed)"
+          }
+          Write-Host "📦 Loading GitHub Provider (internal routing)..."
+          Write-Host "   Path: $gitHubProviderPath/K.PSGallery.PackageRepoProvider.GitHub.psd1"
+          Import-Module "$gitHubProviderPath/K.PSGallery.PackageRepoProvider.GitHub.psd1" -Force -Verbose
+          
+          # 🔄 Load PackageRepoProvider based on bootstrap strategy
+          if ('${{ env.USE_GITHUB_PACKAGES }}' -eq 'true') {
+            Write-Host ""
+            Write-Host "📦 Installing K.PSGallery.PackageRepoProvider from GitHub Packages (stable, one-version-behind)..."
+            Write-Host "   Source: https://nuget.pkg.github.com/GrexyLoco/index.json"
+            
+            try {
+              # Register temporary repo to install from GitHub Packages
+              Register-PSResourceRepository -Name 'GrexyLoco-Temp' `
+                -Uri 'https://nuget.pkg.github.com/GrexyLoco/index.json' `
+                -Trusted `
+                -Verbose
+              
+              # Install from GitHub Packages
+              Install-PSResource -Name K.PSGallery.PackageRepoProvider `
+                -Repository 'GrexyLoco-Temp' `
+                -Scope CurrentUser `
+                -TrustRepository `
+                -Verbose
+              
+              Import-Module K.PSGallery.PackageRepoProvider -Force -Verbose
+              Write-Host "✅ Successfully loaded PackageRepoProvider from GitHub Packages"
+            }
+            catch {
+              Write-Host ""
+              Write-Host "❌ Failed to install from GitHub Packages!"
+              Write-Host ""
+              Write-Host "💡 Troubleshooting tips:"
+              Write-Host "   1. Check if module is published: https://github.com/GrexyLoco?tab=packages"
+              Write-Host "   2. Verify GITHUB_TOKEN has packages:read permission"
+              Write-Host "   3. For first-time bootstrap: Set use-psgallery=false (use local Git)"
+              Write-Host "   4. Error details: $($_.Exception.Message)"
+              Write-Host ""
+              Write-Host "⚙️  Switching to LOCAL fallback mode..."
+              throw "Cannot proceed without PackageRepoProvider module"
+            }
+          } else {
+            Write-Host ""
+            Write-Host "📦 Importing LOCAL K.PSGallery.PackageRepoProvider (bootstrap/breaking-changes mode)..."
+            Write-Host "   Path: ./K.PSGallery.PackageRepoProvider.psd1"
+            Write-Host "   ℹ️  Using current Git checkout (self-hosting)"
+            Import-Module ./K.PSGallery.PackageRepoProvider.psd1 -Force -Verbose
           }
           
-          # Publish module
-          Publish-PSResource -Path ./K.PSGallery.PackageRepoProvider.psd1 -ApiKey $env:PSGALLERY_API_KEY -Repository PSGallery
-          Write-Host "Module published successfully!"
+          # Register GitHub Packages repository
+          $repoName = "GrexyLoco-GitHub"
+          $registryUri = "https://nuget.pkg.github.com/GrexyLoco/index.json"
+          
+          Write-Host ""
+          Write-Host "🔧 Registering repository: $repoName"
+          Write-Host "   URI: $registryUri"
+          Register-PackageRepo -RepositoryName $repoName -RegistryUri $registryUri -Token $env:GITHUB_TOKEN -Trusted
+          
+          # Publish using our own PackageRepoProvider
+          Write-Host ""
+          Write-Host "📤 Publishing K.PSGallery.PackageRepoProvider to GitHub Packages..."
+          Publish-Package -RepositoryName $repoName -Token $env:GITHUB_TOKEN
+          
+          Write-Host ""
+          Write-Host "✅ Module published successfully to GitHub Packages!"
+          Write-Host "   Package: https://github.com/GrexyLoco?tab=packages"
