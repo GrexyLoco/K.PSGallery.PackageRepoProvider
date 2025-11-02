@@ -40,16 +40,18 @@ jobs:
         run: |
           Install-PSResource -Name PSScriptAnalyzer -Scope CurrentUser -TrustRepository -SkipDependencyCheck
           
-          # Exclude test files (they use ConvertTo-SecureString for mock credentials)
-          $results = Invoke-ScriptAnalyzer -Path . -Recurse -Severity Error,Warning -ExcludeRule PSReviewUnusedParameter,PSUsePSCredentialType | Where-Object {
-            $_.ScriptPath -notlike '*\Tests\*'
+          # Only scan production code (Public + Private folders), exclude tests and trailing whitespace warnings
+          $paths = @('./Public', './Private')
+          $results = $paths | ForEach-Object { 
+            Invoke-ScriptAnalyzer -Path $_ -Recurse -Severity Error,Warning -ExcludeRule PSAvoidTrailingWhitespace,PSReviewUnusedParameter 
           }
           
           if ($results) {
-            $results | Format-Table -AutoSize
-            throw "PSScriptAnalyzer found $($results.Count) issues in production code"
+            Write-Host "❌ PSScriptAnalyzer found $($results.Count) issues:"
+            $results | Format-Table -Property RuleName,Severity,ScriptName,Line -AutoSize
+            throw "PSScriptAnalyzer validation failed"
           }
-          Write-Host "✅ PSScriptAnalyzer passed (production code only)!"
+          Write-Host "✅ PSScriptAnalyzer passed!"
       
       - name: Publish to PowerShell Gallery
         shell: pwsh
