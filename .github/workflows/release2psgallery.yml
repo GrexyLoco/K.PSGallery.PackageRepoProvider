@@ -17,7 +17,8 @@ name: Build, Test & Publish to GitHub Packages
 # - LOCAL (default):      Git checkout, bootstrap phase, breaking changes
 # - GitHub Packages:      Published version, stable, one-version-behind
 #
-# Note: GitHub Provider (K.PSGallery.PackageRepoProvider.GitHub) is ALWAYS from Git!
+# Note: Pipeline uses ONLY PackageRepoProvider public API (no direct provider imports!)
+#       Provider routing happens transparently inside PackageRepoProvider.
 
 on:
   release:
@@ -40,10 +41,9 @@ env:
   # 
   # Controls where K.PSGallery.PackageRepoProvider is loaded from:
   # - false/not set = LOCAL Git checkout (default, bootstrap phase, breaking changes)
+  #                   Provider also loaded from Git (not yet published as RequiredModules)
   # - true          = GitHub Packages (self-hosted, stable, one-version-behind)
-  # 
-  # Note: Only PackageRepoProvider itself is toggled, NOT the GitHub provider!
-  #       GitHub provider (K.PSGallery.PackageRepoProvider.GitHub) is always checked out.
+  #                   Provider loaded from GitHub Packages (after first publish)
   USE_GITHUB_PACKAGES: ${{ inputs.use-psgallery || vars.USE_GITHUB_PACKAGES || 'false' }}
 
 jobs:
@@ -57,11 +57,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Checkout GitHub Provider (always needed for internal routing)
+      - name: Checkout GitHub Provider (bootstrap dependency)
         uses: actions/checkout@v4
         with:
           repository: GrexyLoco/K.PSGallery.PackageRepoProvider.GitHub
-          path: K.PSGallery.PackageRepoProvider.GitHub
+          path: ../K.PSGallery.PackageRepoProvider.GitHub
           token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Setup PowerShell
@@ -106,16 +106,8 @@ jobs:
             throw "GITHUB_TOKEN is not available"
           }
           
-          # 📦 ALWAYS load GitHub Provider (internal routing logic)
-          $gitHubProviderPath = "./K.PSGallery.PackageRepoProvider.GitHub"
-          if (-not (Test-Path "$gitHubProviderPath/K.PSGallery.PackageRepoProvider.GitHub.psd1")) {
-            throw "❌ GitHub provider module not found at $gitHubProviderPath (checkout failed)"
-          }
-          Write-Host "📦 Loading GitHub Provider (internal routing)..."
-          Write-Host "   Path: $gitHubProviderPath/K.PSGallery.PackageRepoProvider.GitHub.psd1"
-          Import-Module "$gitHubProviderPath/K.PSGallery.PackageRepoProvider.GitHub.psd1" -Force -Verbose
-          
-          # 🔄 Load PackageRepoProvider based on bootstrap strategy
+          # � Load PackageRepoProvider based on bootstrap strategy
+          # TODO: Enable GitHub Packages mode after first successful publish
           if ('${{ env.USE_GITHUB_PACKAGES }}' -eq 'true') {
             Write-Host ""
             Write-Host "📦 Installing K.PSGallery.PackageRepoProvider from GitHub Packages (stable, one-version-behind)..."
@@ -137,6 +129,9 @@ jobs:
               
               Import-Module K.PSGallery.PackageRepoProvider -Force -Verbose
               Write-Host "✅ Successfully loaded PackageRepoProvider from GitHub Packages"
+              
+              # Provider will be loaded from GitHub Packages as RequiredModules dependency
+              Write-Host "   (GitHub Provider loaded automatically via RequiredModules)"
             }
             catch {
               Write-Host ""
@@ -148,19 +143,35 @@ jobs:
               Write-Host "   3. For first-time bootstrap: Set use-psgallery=false (use local Git)"
               Write-Host "   4. Error details: $($_.Exception.Message)"
               Write-Host ""
-              Write-Host "⚙️  Switching to LOCAL fallback mode..."
-              throw "Cannot proceed without PackageRepoProvider module"
+              Write-Host "⚙️  Falling back to LOCAL mode..."
+              # Don't throw - fall through to LOCAL mode
+              $env:USE_GITHUB_PACKAGES = 'false'
             }
-          } else {
+          }
+          
+          # LOCAL mode (bootstrap or fallback)
+          if ('${{ env.USE_GITHUB_PACKAGES }}' -ne 'true') {
             Write-Host ""
             Write-Host "📦 Importing LOCAL K.PSGallery.PackageRepoProvider (bootstrap/breaking-changes mode)..."
             Write-Host "   Path: ./K.PSGallery.PackageRepoProvider.psd1"
             Write-Host "   ℹ️  Using current Git checkout (self-hosting)"
+            
+            # Bootstrap: Make provider available for Get-RepoProvider
+            $gitHubProviderPath = "../K.PSGallery.PackageRepoProvider.GitHub"
+            if (-not (Test-Path "$gitHubProviderPath/K.PSGallery.PackageRepoProvider.GitHub.psd1")) {
+              throw "❌ GitHub provider module not found at $gitHubProviderPath (checkout failed)"
+            }
+            Write-Host "   - Bootstrapping GitHub Provider: $gitHubProviderPath"
+            Import-Module "$gitHubProviderPath/K.PSGallery.PackageRepoProvider.GitHub.psd1" -Force -Verbose
+            
+            # Import PackageRepoProvider (will use already-loaded provider via Get-RepoProvider)
             Import-Module ./K.PSGallery.PackageRepoProvider.psd1 -Force -Verbose
+            Write-Host "✅ PackageRepoProvider loaded (uses pre-loaded GitHub Provider transparently)"
           }
           
+          # Use PackageRepoProvider public API (provider routing is transparent!)
           # Register GitHub Packages repository
-          $repoName = "GrexyLoco-GitHub"
+          $repoName = "1d70f-Repo"
           $registryUri = "https://nuget.pkg.github.com/GrexyLoco/index.json"
           
           Write-Host ""
