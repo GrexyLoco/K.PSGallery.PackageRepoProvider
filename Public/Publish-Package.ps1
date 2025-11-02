@@ -48,8 +48,8 @@ function Publish-Package {
         [ValidateNotNullOrEmpty()]
         [string]$RepositoryName,
 
-        [Parameter(ParameterSetName = 'ExplicitPathCredential')]
-        [Parameter(ParameterSetName = 'ExplicitPathToken')]
+        [Parameter(Mandatory, ParameterSetName = 'ExplicitPathCredential')]
+        [Parameter(Mandatory, ParameterSetName = 'ExplicitPathToken')]
         [ValidateScript({ Test-Path $_ -PathType Container })]
         [string]$ModulePath,
 
