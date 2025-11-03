@@ -7,7 +7,6 @@
     Copyright = '(c) 2025 GrexyLoco. All rights reserved.'
     Description = 'Aggregator/Facade module for private package repositories with automatic provider routing (GitHub, GitLab)'
     PowerShellVersion = '7.0'
-    
     # RequiredModules = @(
     #     @{
     #         ModuleName = 'K.PSGallery.LoggingModule'
@@ -38,6 +37,8 @@
             LicenseUri = 'https://github.com/GrexyLoco/K.PSGallery.PackageRepoProvider/blob/main/LICENSE'
             ProjectUri = 'https://github.com/GrexyLoco/K.PSGallery.PackageRepoProvider'
             ReleaseNotes = 'Initial release with provider routing and public API'
+            # Workaround: Explicit Authors for NuGet package generation (Publish-PSResource bug?)
+            Authors = @('GrexyLoco')
         }
     }
 }
