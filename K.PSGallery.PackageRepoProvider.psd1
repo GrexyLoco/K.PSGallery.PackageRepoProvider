@@ -38,7 +38,6 @@
             ProjectUri = 'https://github.com/GrexyLoco/K.PSGallery.PackageRepoProvider'
             ReleaseNotes = 'Initial release with provider routing and public API'
             # Workaround: Explicit Authors for NuGet package generation (Publish-PSResource bug?)
-            Authors = @('GrexyLoco')
         }
     }
 }
