@@ -69,12 +69,12 @@ jobs:
         run: |
           Write-Host "PowerShell Version: $($PSVersionTable.PSVersion)"
           
-          # Always install/update PSResourceGet to latest version (fixes "No author" bug)
-          Write-Host "Installing/Updating Microsoft.PowerShell.PSResourceGet..."
-          Install-PSResource -Name Microsoft.PowerShell.PSResourceGet -Scope CurrentUser -TrustRepository -Reinstall -Verbose
+          # Install latest PREVIEW version of PSResourceGet (1.2.0-preview3 fixes "No author" bug)
+          Write-Host "Installing Microsoft.PowerShell.PSResourceGet PREVIEW..."
+          Install-PSResource -Name Microsoft.PowerShell.PSResourceGet -Prerelease -Scope CurrentUser -TrustRepository -Reinstall -Verbose
           
           # Verify version
-          $version = (Get-Module Microsoft.PowerShell.PSResourceGet -ListAvailable | Select-Object -First 1).Version
+          $version = (Get-Module Microsoft.PowerShell.PSResourceGet -ListAvailable | Sort-Object Version -Descending | Select-Object -First 1).Version
           Write-Host "✅ PSResourceGet Version: $version"
       
       - name: Run Pester tests
