@@ -76,7 +76,7 @@ jobs:
           # Install SecretManagement (dependency of PSResourceGet) with prerelease to match PSResourceGet versioning and dont ask for confirmation
           Write-Host "Installing Microsoft.PowerShell.SecretManagement..."
           Install-Module -Name Microsoft.PowerShell.SecretManagement -AllowPrerelease -Scope CurrentUser -Force -Verbose
-          
+
           # Verify version
           $version = (Get-Module Microsoft.PowerShell.PSResourceGet -ListAvailable | Sort-Object Version -Descending | Select-Object -First 1).Version
           Write-Host "✅ PSResourceGet Version: $version"
@@ -114,9 +114,12 @@ jobs:
             throw "GITHUB_TOKEN is not available"
           }
           
+          # Convert to boolean (case-insensitive: 'true', 'True', 'TRUE' all work)
+          $useGitHubPackages = [System.Convert]::ToBoolean('${{ env.USE_GITHUB_PACKAGES }}')
+          
           # � Load PackageRepoProvider based on bootstrap strategy
           # TODO: Enable GitHub Packages mode after first successful publish
-          if ('${{ env.USE_GITHUB_PACKAGES }}' -eq 'true') {
+          if ($useGitHubPackages) {
             Write-Host ""
             Write-Host "📦 Installing K.PSGallery.PackageRepoProvider from GitHub Packages (stable, one-version-behind)..."
             Write-Host "   Source: https://nuget.pkg.github.com/GrexyLoco/index.json"
@@ -153,12 +156,12 @@ jobs:
               Write-Host ""
               Write-Host "⚙️  Falling back to LOCAL mode..."
               # Don't throw - fall through to LOCAL mode
-              $env:USE_GITHUB_PACKAGES = 'false'
+              $useGitHubPackages = $false
             }
           }
           
           # LOCAL mode (bootstrap or fallback)
-          if ('${{ env.USE_GITHUB_PACKAGES }}' -ne 'true') {
+          if (-not $useGitHubPackages) {
             Write-Host ""
             Write-Host "📦 Importing LOCAL K.PSGallery.PackageRepoProvider (bootstrap/breaking-changes mode)..."
             Write-Host "   Path: ./K.PSGallery.PackageRepoProvider.psd1"

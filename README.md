@@ -77,24 +77,47 @@ Publish-Package `
 ```powershell
 # Latest version (Interactive)
 $cred = Get-Credential
-Install-Package `
+Install-PackageModule `
     -RepositoryName 'MyGitHub' `
     -ModuleName 'MyModule' `
     -Credential $cred
 
 # Latest version (CI/CD with token)
-Install-Package `
+Install-PackageModule `
     -RepositoryName 'MyGitHub' `
     -ModuleName 'MyModule' `
     -Token $env:GITHUB_TOKEN
 
-# Specific version
+# Specific version (exact)
 $cred = Get-Credential
-Install-Package `
+Install-PackageModule `
+    -RepositoryName 'MyGitHub' `
+    -ModuleName 'MyModule' `
+    -Version '1.2.3' `
+    -Credential $cred
+
+# Latest 1.x.x version (semantic version pattern)
+Install-PackageModule `
+    -RepositoryName 'MyGitHub' `
+    -ModuleName 'MyModule' `
+    -Version '1' `
+    -Token $env:GITHUB_TOKEN
+
+# Latest 1.2.x version
+Install-PackageModule `
+    -RepositoryName 'MyGitHub' `
+    -ModuleName 'MyModule' `
+    -Version '1.2' `
+    -Token $env:GITHUB_TOKEN
+
+# Install to AllUsers scope with auto-import
+$cred = Get-Credential
+Install-PackageModule `
     -RepositoryName 'MyGitHub' `
     -ModuleName 'MyModule' `
     -Version '1.2.3' `
     -Credential $cred `
+    -Scope AllUsers `
     -ImportAfterInstall
 ```
 
@@ -124,7 +147,75 @@ Get-PackageRepoProvider -Name 'GitHub'
 Remove-PackageRepo -RepositoryName 'MyGitHub'
 ```
 
-## 🔧 CI/CD Integration
+## � API Reference
+
+### Register-PackageRepo
+
+Registers a package repository with automatic provider detection.
+
+**Parameters:**
+- `-RepositoryName` (string, required): Name for the repository
+- `-RegistryUri` (uri, required): Registry URL (auto-detects provider from URL)
+- `-Credential` (PSCredential, required*): Credentials for authentication (interactive)
+- `-Token` (string, required*): PAT/API token for authentication (CI/CD)
+- `-Trusted` (switch): Mark repository as trusted
+
+*Either `-Credential` or `-Token` required
+
+### Publish-Package
+
+Publishes a module to a registered repository.
+
+**Parameters:**
+- `-RepositoryName` (string, required): Target repository name
+- `-ModulePath` (string): Path to module directory (auto-discovers if omitted)
+- `-ModuleName` (string): Expected module name for validation
+- `-Credential` (PSCredential, required*): Credentials for authentication (interactive)
+- `-Token` (string, required*): PAT/API token for authentication (CI/CD)
+
+*Either `-Credential` or `-Token` required
+
+### Install-PackageModule
+
+Installs a module from a registered repository with flexible versioning.
+
+**Parameters:**
+- `-RepositoryName` (string, required): Source repository name
+- `-ModuleName` (string, required): Name of module to install
+- `-Version` (string): Version specification (`'1'`, `'1.2'`, `'1.2.3'`, or empty for latest)
+- `-Credential` (PSCredential, required*): Credentials for authentication (interactive)
+- `-Token` (string, required*): PAT/API token for authentication (CI/CD)
+- `-Scope` (string): Installation scope - `'CurrentUser'` (default) or `'AllUsers'`
+- `-ImportAfterInstall` (switch): Automatically import module after installation
+
+*Either `-Credential` or `-Token` required
+
+### Import-PackageModule
+
+Imports an installed module into the current session.
+
+**Parameters:**
+- `-ModuleName` (string, required*): Name of module to import
+- `-ModulePath` (string, required*): Path to module directory
+- `-Force` (switch): Force reload if already imported
+
+*Either `-ModuleName` or `-ModulePath` required
+
+### Remove-PackageRepo
+
+Unregisters a package repository.
+
+**Parameters:**
+- `-RepositoryName` (string, required): Name of repository to remove
+
+### Get-PackageRepoProvider
+
+Lists available provider modules.
+
+**Parameters:**
+- `-Name` (string): Filter providers by name
+
+## �🔧 CI/CD Integration
 
 All cmdlets that require authentication support both PSCredential objects and token-based authentication, making them ideal for CI/CD pipelines.
 
@@ -198,7 +289,7 @@ K.PSGallery.PackageRepoProvider/
 ├── Public/              # Exported cmdlets
 │   ├── Register-PackageRepo.ps1
 │   ├── Publish-Package.ps1
-│   ├── Install-Package.ps1
+│   ├── Install-PackageModule.ps1
 │   ├── Import-PackageModule.ps1
 │   ├── Remove-PackageRepo.ps1
 │   └── Get-PackageRepoProvider.ps1
@@ -225,12 +316,27 @@ K.PSGallery.PackageRepoProvider/
 
 ## 📝 Version Flexibility
 
-The `Install-Package` cmdlet supports flexible version specifications:
+The `Install-PackageModule` cmdlet supports flexible version specifications similar to GitHub Actions:
 
-- `v1` or `1` → Latest 1.x.x version
-- `1.2` → Latest 1.2.x version
-- `1.2.3` → Exact version 1.2.3
-- Empty/null → Latest version
+- **`'1'` or `'v1'`** → Latest 1.x.x version (e.g., 1.9.5)
+- **`'1.2'`** → Latest 1.2.x version (e.g., 1.2.8)
+- **`'1.2.3'`** → Exact version 1.2.3
+- **Empty/null** → Latest available version
+
+This makes it easy to pin major or minor versions while getting patch updates automatically in CI/CD pipelines.
+
+### Example Use Cases
+
+```powershell
+# CI/CD: Always get latest v1 (safe major version lock)
+Install-PackageModule -RepositoryName 'MyGitHub' -ModuleName 'MyModule' -Version '1' -Token $env:GITHUB_TOKEN
+
+# Development: Lock to 1.2.x for stability
+Install-PackageModule -RepositoryName 'MyGitHub' -ModuleName 'MyModule' -Version '1.2' -Token $env:GITHUB_TOKEN
+
+# Production: Exact version for reproducibility
+Install-PackageModule -RepositoryName 'MyGitHub' -ModuleName 'MyModule' -Version '1.2.3' -Token $env:GITHUB_TOKEN
+```
 
 ## 🧪 Testing
 
