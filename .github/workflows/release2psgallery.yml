@@ -75,8 +75,8 @@ jobs:
           
           # Install SecretManagement (dependency of PSResourceGet)
           Write-Host "Installing Microsoft.PowerShell.SecretManagement..."
-          Install-Module -Name Microsoft.PowerShell.SecretManagement -Scope CurrentUser -Verbose
-          
+          Install-Module -Name Microsoft.PowerShell.SecretManagement -Prerelease -Scope CurrentUser -TrustRepository -Verbose
+
           # Verify version
           $version = (Get-Module Microsoft.PowerShell.PSResourceGet -ListAvailable | Sort-Object Version -Descending | Select-Object -First 1).Version
           Write-Host "✅ PSResourceGet Version: $version"
