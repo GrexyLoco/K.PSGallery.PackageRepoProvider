@@ -125,24 +125,30 @@ jobs:
             Write-Host "   Source: https://nuget.pkg.github.com/GrexyLoco/index.json"
             
             try {
-              # Register temporary repo to install from GitHub Packages
-              # Register-PSResourceRepository -Name 'GrexyLoco-Temp' `
-              #   -Uri 'https://nuget.pkg.github.com/GrexyLoco/index.json' `
-              #   -Trusted `
-              #   -Verbose
+              # Bootstrap: Use Microsoft's cmdlets directly (our wrapper functions not yet available)
+              # Convert token to PSCredential
+              $secureToken = ConvertTo-SecureString $env:GITHUB_TOKEN -AsPlainText -Force
+              $credential = [PSCredential]::new('token', $secureToken)
               
-              Register-PackageRepo -RepositoryName 'GrexyLoco-Temp' `
-                -RegistryUri 'https://nuget.pkg.github.com/GrexyLoco/index.json' `
-                -Token $env:GITHUB_TOKEN `
+              # Convert to PSResourceGet CredentialInfo
+              $credentialInfo = [Microsoft.PowerShell.PSResourceGet.UtilClasses.PSCredentialInfo]::new(
+                $credential.UserName,
+                $credential.Password
+              )
+              
+              # Register temporary repo with authentication
+              Register-PSResourceRepository -Name 'GrexyLoco-Temp' `
+                -Uri 'https://nuget.pkg.github.com/GrexyLoco/index.json' `
                 -Trusted `
+                -CredentialInfo $credentialInfo `
                 -Verbose
-
-
-              # Install from GitHub Packages
+              
+              # Install from GitHub Packages with credentials
               Install-PSResource -Name K.PSGallery.PackageRepoProvider `
                 -Repository 'GrexyLoco-Temp' `
                 -Scope CurrentUser `
                 -TrustRepository `
+                -Credential $credential `
                 -Verbose
               
               Import-Module K.PSGallery.PackageRepoProvider -Force -Verbose
