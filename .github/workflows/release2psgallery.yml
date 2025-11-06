@@ -126,11 +126,18 @@ jobs:
             
             try {
               # Register temporary repo to install from GitHub Packages
-              Register-PSResourceRepository -Name 'GrexyLoco-Temp' `
-                -Uri 'https://nuget.pkg.github.com/GrexyLoco/index.json' `
+              # Register-PSResourceRepository -Name 'GrexyLoco-Temp' `
+              #   -Uri 'https://nuget.pkg.github.com/GrexyLoco/index.json' `
+              #   -Trusted `
+              #   -Verbose
+              
+              Register-PackageRepo -RepositoryName 'GrexyLoco-Temp' `
+                -RegistryUri 'https://nuget.pkg.github.com/GrexyLoco/index.json' `
+                -Token $env:GITHUB_TOKEN `
                 -Trusted `
                 -Verbose
-              
+
+
               # Install from GitHub Packages
               Install-PSResource -Name K.PSGallery.PackageRepoProvider `
                 -Repository 'GrexyLoco-Temp' `
