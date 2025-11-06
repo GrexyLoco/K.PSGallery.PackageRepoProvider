@@ -193,8 +193,44 @@ jobs:
           # Publish using our own PackageRepoProvider
           Write-Host ""
           Write-Host "📤 Publishing K.PSGallery.PackageRepoProvider to GitHub Packages..."
-          Publish-Package -RepositoryName $repoName -Token $env:GITHUB_TOKEN
           
-          Write-Host ""
-          Write-Host "✅ Module published successfully to GitHub Packages!"
-          Write-Host "   Package: https://github.com/GrexyLoco?tab=packages"
+          try {
+            Publish-Package -RepositoryName $repoName -Token $env:GITHUB_TOKEN
+            
+            Write-Host ""
+            Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Green
+            Write-Host "✅ PUBLISH SUCCESSFUL" -ForegroundColor Green
+            Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Green
+            Write-Host ""
+            Write-Host "📦 Module:       K.PSGallery.PackageRepoProvider" -ForegroundColor Cyan
+            Write-Host "🎯 Repository:   $repoName" -ForegroundColor Cyan
+            Write-Host "🔗 Registry:     $registryUri" -ForegroundColor Cyan
+            Write-Host "🔄 Load Mode:    $(if ($useGitHubPackages) { 'GitHub Packages (stable)' } else { 'LOCAL Bootstrap' })" -ForegroundColor Cyan
+            Write-Host "📍 View Package: https://github.com/GrexyLoco?tab=packages" -ForegroundColor Cyan
+            Write-Host ""
+            Write-Host "🚀 Ready to install with:" -ForegroundColor Yellow
+            Write-Host "   Install-PackageModule -RepositoryName '$repoName' -ModuleName 'K.PSGallery.PackageRepoProvider' -Token `$env:GITHUB_TOKEN" -ForegroundColor Gray
+            Write-Host ""
+          }
+          catch {
+            Write-Host ""
+            Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Red
+            Write-Host "❌ PUBLISH FAILED" -ForegroundColor Red
+            Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Red
+            Write-Host ""
+            Write-Host "💥 Error: $($_.Exception.Message)" -ForegroundColor Red
+            Write-Host ""
+            Write-Host "🔍 Diagnostics:" -ForegroundColor Yellow
+            Write-Host "   Repository:   $repoName" -ForegroundColor Gray
+            Write-Host "   Registry:     $registryUri" -ForegroundColor Gray
+            Write-Host "   Load Mode:    $(if ($useGitHubPackages) { 'GitHub Packages' } else { 'LOCAL Bootstrap' })" -ForegroundColor Gray
+            Write-Host "   Auth:         $(if ($env:GITHUB_TOKEN) { 'Token present ✓' } else { 'Token missing ✗' })" -ForegroundColor Gray
+            Write-Host ""
+            Write-Host "💡 Common Issues:" -ForegroundColor Yellow
+            Write-Host "   • Check GITHUB_TOKEN has packages:write permission" -ForegroundColor Gray
+            Write-Host "   • Verify module manifest is valid (Test-ModuleManifest)" -ForegroundColor Gray
+            Write-Host "   • Ensure PSResourceGet is installed (Get-Module PSResourceGet)" -ForegroundColor Gray
+            Write-Host "   • Check repository registration (Get-PSResourceRepository)" -ForegroundColor Gray
+            Write-Host ""
+            throw
+          }
