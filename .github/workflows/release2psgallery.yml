@@ -130,17 +130,11 @@ jobs:
               $secureToken = ConvertTo-SecureString $env:GITHUB_TOKEN -AsPlainText -Force
               $credential = [PSCredential]::new('token', $secureToken)
               
-              # Convert to PSResourceGet CredentialInfo
-              $credentialInfo = [Microsoft.PowerShell.PSResourceGet.UtilClasses.PSCredentialInfo]::new(
-                $credential.UserName,
-                $credential.Password
-              )
-              
-              # Register temporary repo with authentication
+              # Register temporary repo WITHOUT credentials (avoid vault requirement)
+              # Credentials will be provided at install time
               Register-PSResourceRepository -Name 'GrexyLoco-Temp' `
                 -Uri 'https://nuget.pkg.github.com/GrexyLoco/index.json' `
                 -Trusted `
-                -CredentialInfo $credentialInfo `
                 -Verbose
               
               # Install from GitHub Packages with credentials
