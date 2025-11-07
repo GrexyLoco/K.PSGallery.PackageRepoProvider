@@ -148,8 +148,15 @@ jobs:
               Import-Module K.PSGallery.PackageRepoProvider -Force -Verbose
               Write-Host "✅ Successfully loaded PackageRepoProvider from GitHub Packages"
               
-              # Provider will be loaded from GitHub Packages as RequiredModules dependency
-              Write-Host "   (GitHub Provider loaded automatically via RequiredModules)"
+              # WORKAROUND: Manual provider import from local Git checkout (temporary until providers are published)
+              # TODO: Remove after Issue #22 - RequiredModules will load providers automatically
+              Write-Host "   ⚙️  WORKAROUND: Manually importing GitHub Provider from local checkout..."
+              $gitHubProviderPath = "./K.PSGallery.PackageRepoProvider.GitHub"
+              if (-not (Test-Path "$gitHubProviderPath/K.PSGallery.PackageRepoProvider.GitHub.psd1")) {
+                throw "❌ GitHub provider module not found at $gitHubProviderPath (checkout failed)"
+              }
+              Import-Module "$gitHubProviderPath/K.PSGallery.PackageRepoProvider.GitHub.psd1" -Force -Verbose
+              Write-Host "   ✅ GitHub Provider loaded from local Git checkout (workaround active)"
             }
             catch {
               Write-Host ""
