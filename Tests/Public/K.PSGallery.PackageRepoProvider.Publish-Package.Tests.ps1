@@ -28,6 +28,14 @@ Describe 'Publish-Package' {
             $mandatoryAttributes = $credentialParam.Attributes | Where-Object { $_.Mandatory -eq $true }
             $mandatoryAttributes.Count | Should -BeGreaterThan 0
         }
+        
+        It 'Should have Token parameter in Token parameter sets' {
+            $tokenParam = (Get-Command Publish-Package).Parameters['Token']
+            $tokenParam | Should -Not -BeNullOrEmpty
+            $tokenAttributes = $tokenParam.Attributes | Where-Object { $_.TypeId.Name -eq 'ParameterAttribute' }
+            $tokenParameterSets = $tokenAttributes | Where-Object { $_.ParameterSetName -like '*Token' }
+            $tokenParameterSets | Should -Not -BeNullOrEmpty
+        }
     }
     
     Context 'Auto-Discovery' {
@@ -71,6 +79,39 @@ Describe 'Publish-Package' {
                 
                 # Verify auto-discovery was called
                 Should -Invoke Resolve-ModulePath -Times 1
+            }
+        }
+        
+        It 'Should support token-based authentication for CI/CD scenarios' {
+            InModuleScope K.PSGallery.PackageRepoProvider {
+                # Test constants
+                $TestRepoName = "TestRepo"
+                $TestProviderName = "GitHub"
+                
+                # Mock provider resolution and loading
+                Mock Get-RegisteredRepoProvider { return $TestProviderName }
+                Mock Get-RepoProvider { 
+                    return [PSCustomObject]@{ Name = $TestProviderName }
+                }
+                Mock Resolve-ModulePath { return $PWD.Path }
+                
+                # Create and mock the provider's Invoke-Publish function
+                if (-not (Get-Command -Name 'GitHub\Invoke-Publish' -ErrorAction SilentlyContinue)) {
+                    New-Item -Path Function:\ -Name 'GitHub\Invoke-Publish' -Value {
+                        param($RepositoryName, $ModulePath, $Credential)
+                    } -Force
+                }
+                Mock GitHub\Invoke-Publish { }
+                
+                $params = @{
+                    RepositoryName = $TestRepoName
+                    Token = 'ghp_test123token'
+                }
+                
+                { Publish-Package @params } | Should -Not -Throw
+                
+                # Verify the provider was called with a credential (token converted to PSCredential)
+                Should -Invoke GitHub\Invoke-Publish -Times 1
             }
         }
     }
