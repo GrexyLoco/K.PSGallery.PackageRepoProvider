@@ -307,7 +307,10 @@ K.PSGallery.PackageRepoProvider/
 ### Required Modules
 
 - **K.PSGallery.LoggingModule**: Safe credential logging
-- **PSResourceGet**: Microsoft's package management module
+- **PSResourceGet**: Microsoft's package management module (v1.2.0+ recommended)
+- **Microsoft.PowerShell.SecretManagement**: Required by PSResourceGet 1.2.0+ for credential handling
+
+> **Note:** PSResourceGet 1.2.0 and later versions require `Microsoft.PowerShell.SecretManagement` to be installed, even when using explicit `-Credential` or `-Token` parameters. This is a PSResourceGet dependency, not specific to this module.
 
 ### Provider Modules (Optional)
 

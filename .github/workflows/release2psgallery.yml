@@ -73,9 +73,10 @@ jobs:
           Write-Host "Installing Microsoft.PowerShell.PSResourceGet PREVIEW..."
           Install-PSResource -Name Microsoft.PowerShell.PSResourceGet -Prerelease -Scope CurrentUser -TrustRepository -Reinstall -Verbose
           
-          # Install SecretManagement (dependency of PSResourceGet) with prerelease to match PSResourceGet versioning and dont ask for confirmation
+          # Install SecretManagement (required dependency of PSResourceGet 1.2.0+)
+          # PSResourceGet 1.2.0+ requires SecretManagement even when explicit -Credential is provided
           Write-Host "Installing Microsoft.PowerShell.SecretManagement..."
-          Install-Module -Name Microsoft.PowerShell.SecretManagement -AllowPrerelease -Scope CurrentUser -Force -Verbose
+          Install-PSResource -Name Microsoft.PowerShell.SecretManagement -Scope CurrentUser -TrustRepository -Verbose
 
           # Verify version
           $version = (Get-Module Microsoft.PowerShell.PSResourceGet -ListAvailable | Sort-Object Version -Descending | Select-Object -First 1).Version
