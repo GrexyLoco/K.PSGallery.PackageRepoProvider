@@ -1,15 +1,18 @@
 BeforeAll {
-    # Manually dot-source the Write-Log.ps1 script since it's loaded via ScriptsToProcess
+    # Set LoggingModuleAvailable to false to test fallback behavior
+    $script:LoggingModuleAvailable = $false
+    
+    # Manually dot-source the Write-Log.ps1 script
     $scriptPath = Join-Path $PSScriptRoot '../../Private/Write-Log.ps1'
     . $scriptPath
 }
 
 Describe 'Write-Log Functions' {
     Context 'When K.PSGallery.LoggingModule is NOT available' {
-        It 'Write-LogInfo should fallback to Write-Host' {
-            # Capture output
-            $output = Write-LogInfo 'Test info message' 6>&1
-            $output | Should -Match '\[INFO\] Test info message'
+        It 'Write-LogInfo should fallback to Write-Output' {
+            # Capture standard output
+            $output = Write-LogInfo 'Test info message'
+            $output | Should -Be '[INFO] Test info message'
         }
 
         It 'Write-LogDebug should fallback to Write-Verbose' {
@@ -52,7 +55,7 @@ Describe 'Write-Log Functions' {
 
     Context 'Parameter Validation' {
         It 'Write-LogInfo should accept string message parameter' {
-            { Write-LogInfo -Message 'Test' 6>$null } | Should -Not -Throw
+            { Write-LogInfo -Message 'Test' | Out-Null } | Should -Not -Throw
         }
 
         It 'Write-LogDebug should accept object data parameter' {

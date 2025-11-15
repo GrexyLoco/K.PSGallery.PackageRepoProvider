@@ -4,22 +4,11 @@
 
 .DESCRIPTION
     Tries to use K.PSGallery.LoggingModule if available.
-    Falls back to Write-Host/Write-Verbose/Write-Warning/Write-Error if not.
+    Falls back to Write-Output/Write-Verbose/Write-Warning/Write-Error if not.
     
-    This module is loaded once at module import time via ScriptsToProcess in the manifest.
-    The logging module availability is checked once and cached in a script-scoped variable.
+    The logging module availability is checked once in the .psm1 file and cached 
+    in the script-scoped variable $script:LoggingModuleAvailable.
 #>
-
-# Try to import LoggingModule (non-blocking)
-$script:LoggingModuleAvailable = $false
-try {
-    Import-Module K.PSGallery.LoggingModule -ErrorAction Stop
-    $script:LoggingModuleAvailable = $true
-}
-catch {
-    # Fallback to standard cmdlets - no error
-    $script:LoggingModuleAvailable = $false
-}
 
 <#
 .SYNOPSIS
@@ -39,7 +28,7 @@ function Write-LogInfo {
         K.PSGallery.LoggingModule\Write-LogInfo -Message $Message
     }
     else {
-        Write-Host "[INFO] $Message" -ForegroundColor Cyan
+        Write-Output "[INFO] $Message"
     }
 }
 
