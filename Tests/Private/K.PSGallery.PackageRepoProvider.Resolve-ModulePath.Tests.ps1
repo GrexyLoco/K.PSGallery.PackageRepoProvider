@@ -1,8 +1,8 @@
 BeforeAll {
     # Import the function
     . $PSScriptRoot/../../Private/Resolve-ModulePath.ps1
-    # Import SafeLogging for logging within tests
-    . $PSScriptRoot/../../Private/SafeLogging.ps1
+    # Import Write-Log for logging within tests
+    . $PSScriptRoot/../../Private/Write-Log.ps1
 }
 
 Describe 'Resolve-ModulePath' {

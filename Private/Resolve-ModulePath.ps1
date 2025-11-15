@@ -47,7 +47,8 @@ function Resolve-ModulePath {
         throw "No module manifest found in current directory: $currentLocation"
     }
     
-    Write-SafeDebugLog -Message "Found $($allPsd1Files.Count) .psd1 file(s), validating module manifests..." -Additional @{
+    Write-LogDebug @{
+        Message = "Found $($allPsd1Files.Count) .psd1 file(s), validating module manifests..."
         Location = $currentLocation.ToString()
         Files = ($allPsd1Files | ForEach-Object { $_.Name }) -join ', '
     }
@@ -61,13 +62,15 @@ function Resolve-ModulePath {
             $isValidManifest = $data.ContainsKey('RootModule') -or $data.ContainsKey('ModuleVersion')
             
             if ($isValidManifest) {
-                Write-SafeDebugLog -Message "Valid module manifest: $($_.Name)" -Additional @{
+                Write-LogDebug @{
+                    Message = "Valid module manifest: $($_.Name)"
                     File = $_.Name
                     HasRootModule = $data.ContainsKey('RootModule')
                     HasModuleVersion = $data.ContainsKey('ModuleVersion')
                 }
             } else {
-                Write-SafeDebugLog -Message "Skipping non-module .psd1: $($_.Name)" -Additional @{
+                Write-LogDebug @{
+                    Message = "Skipping non-module .psd1: $($_.Name)"
                     File = $_.Name
                     Reason = 'Missing RootModule and ModuleVersion keys'
                 }
@@ -76,7 +79,8 @@ function Resolve-ModulePath {
             return $isValidManifest
         }
         catch {
-            Write-SafeDebugLog -Message "Skipping invalid .psd1: $($_.Name)" -Additional @{
+            Write-LogDebug @{
+                Message = "Skipping invalid .psd1: $($_.Name)"
                 File = $_.Name
                 Error = $_.Exception.Message
             }
@@ -98,7 +102,8 @@ function Resolve-ModulePath {
     
     # Success: Exactly one valid module manifest found
     $foundManifest = $validManifests[0]
-    Write-SafeDebugLog -Message "Module manifest resolved successfully" -Additional @{
+    Write-LogDebug @{
+        Message = "Module manifest resolved successfully"
         Manifest = $foundManifest.Name
         Path = $foundManifest.DirectoryName
     }

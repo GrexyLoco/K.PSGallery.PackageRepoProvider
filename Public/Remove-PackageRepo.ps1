@@ -50,7 +50,8 @@ function Remove-PackageRepo {
                 $Script:ProviderRegistry.Remove($RepositoryName)
             }
             
-            Write-SafeInfoLog -Message "Successfully removed repository '$RepositoryName' using $provider provider" -Additional @{
+            Write-LogInfo "Successfully removed repository '$RepositoryName' using $provider provider"
+            Write-LogDebug @{
                 Repository = $RepositoryName
                 Provider = $provider
             }

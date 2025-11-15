@@ -122,9 +122,11 @@ function Install-PackageModule {
         Import-PackageModule -ModuleName $ModuleName
     }
     
-    Write-SafeInfoLog -Message "Successfully installed package '$ModuleName' from repository '$RepositoryName' using $provider provider" -Additional @{
+    Write-LogInfo "Successfully installed package '$ModuleName' from repository '$RepositoryName' using $provider provider"
+    Write-LogDebug @{
         Module = $ModuleName
         Repository = $RepositoryName
         Provider = $provider
+        Scope = $Scope
     }
 }
