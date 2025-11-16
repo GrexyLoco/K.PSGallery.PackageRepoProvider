@@ -15,8 +15,8 @@
     )
 
     # Script files (.ps1) that are run in the caller's environment prior to importing this module.
-    # Write-Log.ps1 provides logging abstraction and must be loaded before the main module
-    ScriptsToProcess = @('Private/Write-Log.ps1')
+    # LogWrapper.ps1 provides logging abstraction and must be loaded before the main module
+    ScriptsToProcess = @('Private/LogWrapper.ps1')
 
     FunctionsToExport = @(
         'Register-PackageRepo',

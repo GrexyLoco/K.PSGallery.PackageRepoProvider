@@ -2,12 +2,12 @@ BeforeAll {
     # Set LoggingModuleAvailable to false to test fallback behavior
     $script:LoggingModuleAvailable = $false
     
-    # Manually dot-source the Write-Log.ps1 script
-    $scriptPath = Join-Path $PSScriptRoot '../../Private/Write-Log.ps1'
+    # Manually dot-source the LogWrapper.ps1 script
+    $scriptPath = Join-Path $PSScriptRoot '../../Private/LogWrapper.ps1'
     . $scriptPath
 }
 
-Describe 'Write-Log Functions' {
+Describe 'LogWrapper Functions' {
     Context 'When K.PSGallery.LoggingModule is NOT available' {
         It 'Write-LogInfo should fallback to Write-Output' {
             # Capture standard output
