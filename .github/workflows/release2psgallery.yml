@@ -57,14 +57,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Checkout GitHub Provider (bootstrap dependency)
-        uses: actions/checkout@v4
-        with:
-          repository: GrexyLoco/K.PSGallery.PackageRepoProvider.GitHub
-          path: K.PSGallery.PackageRepoProvider.GitHub
-          token: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Setup PowerShell
+      - name: Install PowerShell
         shell: pwsh
         run: |
           Write-Host "PowerShell Version: $($PSVersionTable.PSVersion)"
@@ -148,16 +141,7 @@ jobs:
               
               Import-Module K.PSGallery.PackageRepoProvider -Force -Verbose
               Write-Host "✅ Successfully loaded PackageRepoProvider from GitHub Packages"
-              
-              # WORKAROUND: Manual provider import from local Git checkout (temporary until providers are published)
-              # TODO: Remove after Issue #22 - RequiredModules will load providers automatically
-              Write-Host "   ⚙️  WORKAROUND: Manually importing GitHub Provider from local checkout..."
-              $gitHubProviderPath = "./K.PSGallery.PackageRepoProvider.GitHub"
-              if (-not (Test-Path "$gitHubProviderPath/K.PSGallery.PackageRepoProvider.GitHub.psd1")) {
-                throw "❌ GitHub provider module not found at $gitHubProviderPath (checkout failed)"
-              }
-              Import-Module "$gitHubProviderPath/K.PSGallery.PackageRepoProvider.GitHub.psd1" -Force -Verbose
-              Write-Host "   ✅ GitHub Provider loaded from local Git checkout (workaround active)"
+              Write-Host "   ℹ️  GitHub Provider automatically loaded via RequiredModules"
             }
             catch {
               Write-Host ""
@@ -181,18 +165,11 @@ jobs:
             Write-Host "📦 Importing LOCAL K.PSGallery.PackageRepoProvider (bootstrap/breaking-changes mode)..."
             Write-Host "   Path: ./K.PSGallery.PackageRepoProvider.psd1"
             Write-Host "   ℹ️  Using current Git checkout (self-hosting)"
+            Write-Host "   ℹ️  GitHub Provider will be installed automatically via RequiredModules"
             
-            # Bootstrap: Make provider available for Get-RepoProvider
-            $gitHubProviderPath = "./K.PSGallery.PackageRepoProvider.GitHub"
-            if (-not (Test-Path "$gitHubProviderPath/K.PSGallery.PackageRepoProvider.GitHub.psd1")) {
-              throw "❌ GitHub provider module not found at $gitHubProviderPath (checkout failed)"
-            }
-            Write-Host "   - Bootstrapping GitHub Provider: $gitHubProviderPath"
-            Import-Module "$gitHubProviderPath/K.PSGallery.PackageRepoProvider.GitHub.psd1" -Force -Verbose
-            
-            # Import PackageRepoProvider (will use already-loaded provider via Get-RepoProvider)
+            # Import PackageRepoProvider (RequiredModules will auto-install GitHub Provider)
             Import-Module ./K.PSGallery.PackageRepoProvider.psd1 -Force -Verbose
-            Write-Host "✅ PackageRepoProvider loaded (uses pre-loaded GitHub Provider transparently)"
+            Write-Host "✅ PackageRepoProvider loaded (GitHub Provider auto-installed via RequiredModules)"
           }
           
           # Use PackageRepoProvider public API (provider routing is transparent!)
