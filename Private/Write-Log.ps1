@@ -6,9 +6,20 @@
     Tries to use K.PSGallery.LoggingModule if available.
     Falls back to Write-Output/Write-Verbose/Write-Warning/Write-Error if not.
     
-    The logging module availability is checked once in the .psm1 file and cached 
-    in the script-scoped variable $script:LoggingModuleAvailable.
+    This script is loaded via ScriptsToProcess in the manifest before the module loads.
+    The logging module availability is checked once and cached in a script-scoped variable.
 #>
+
+# Try to import LoggingModule (non-blocking)
+$script:LoggingModuleAvailable = $false
+try {
+    Import-Module K.PSGallery.LoggingModule -ErrorAction Stop
+    $script:LoggingModuleAvailable = $true
+}
+catch {
+    # Fallback to standard cmdlets - no error
+    $script:LoggingModuleAvailable = $false
+}
 
 <#
 .SYNOPSIS

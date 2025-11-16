@@ -1,17 +1,6 @@
 # K.PSGallery.PackageRepoProvider Module
 # Aggregator/Facade for private package repositories
 
-# Try to import LoggingModule (non-blocking)
-$script:LoggingModuleAvailable = $false
-try {
-    Import-Module K.PSGallery.LoggingModule -ErrorAction Stop
-    $script:LoggingModuleAvailable = $true
-}
-catch {
-    # Fallback to standard cmdlets - no error
-    $script:LoggingModuleAvailable = $false
-}
-
 # Get public and private function definition files
 $Public = @(Get-ChildItem -Path $PSScriptRoot/Public/*.ps1 -ErrorAction SilentlyContinue)
 $Private = @(Get-ChildItem -Path $PSScriptRoot/Private/*.ps1 -ErrorAction SilentlyContinue)

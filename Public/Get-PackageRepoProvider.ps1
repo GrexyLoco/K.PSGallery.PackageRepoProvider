@@ -38,9 +38,6 @@ function Get-PackageRepoProvider {
     
     if (-not $availableModules) {
         Write-LogWarning "No provider modules found matching pattern '$providerPattern'"
-        Write-LogDebug @{
-            Pattern = $providerPattern
-        }
         return
     }
     
