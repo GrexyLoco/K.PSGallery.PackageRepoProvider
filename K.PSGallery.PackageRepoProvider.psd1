@@ -1,6 +1,6 @@
 @{
     RootModule = 'K.PSGallery.PackageRepoProvider.psm1'
-    ModuleVersion = '0.1.8'
+    ModuleVersion = '0.1.9'
     GUID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
     Author = 'GrexyLoco'
     CompanyName = 'GrexyLoco'
