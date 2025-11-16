@@ -37,9 +37,7 @@ function Get-PackageRepoProvider {
     $availableModules = Get-Module -ListAvailable -Name $providerPattern
     
     if (-not $availableModules) {
-        Write-SafeWarningLog -Message "No provider modules found matching pattern '$providerPattern'" -Additional @{
-            Pattern = $providerPattern
-        }
+        Write-LogWarning "No provider modules found matching pattern '$providerPattern'"
         return
     }
     

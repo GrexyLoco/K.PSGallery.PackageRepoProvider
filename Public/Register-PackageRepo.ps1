@@ -105,10 +105,13 @@ function Register-PackageRepo {
         $invokeCommand = "$($providerModule.Name)\Invoke-RegisterRepo"
         & $invokeCommand @providerParams
         
-        Write-SafeInfoLog -Message "Successfully registered repository '$RepositoryName' using $provider provider" -Additional @{
+        Write-LogInfo "Successfully registered repository '$RepositoryName' using $provider provider"
+        Write-LogDebug @{
             Repository = $RepositoryName
             Provider = $provider
-            Uri = $Uri
+            Uri = $RegistryUri.ToString()
+            User = $Credential.UserName
+            Trusted = $Trusted.IsPresent
         }
     }
     catch {
