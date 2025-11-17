@@ -60,20 +60,20 @@ jobs:
       - name: Install PowerShell
         shell: pwsh
         run: |
-          Write-Host "PowerShell Version: $($PSVersionTable.PSVersion)"
+          Write-Output "PowerShell Version: $($PSVersionTable.PSVersion)"
           
           # Install latest PREVIEW version of PSResourceGet (1.2.0-preview3 fixes "No author" bug)
-          Write-Host "Installing Microsoft.PowerShell.PSResourceGet PREVIEW..."
+          Write-Output "Installing Microsoft.PowerShell.PSResourceGet PREVIEW..."
           Install-PSResource -Name Microsoft.PowerShell.PSResourceGet -Prerelease -Scope CurrentUser -TrustRepository -Reinstall -Verbose
           
           # Install SecretManagement (required dependency of PSResourceGet 1.2.0+)
           # PSResourceGet 1.2.0+ requires SecretManagement even when explicit -Credential is provided
-          Write-Host "Installing Microsoft.PowerShell.SecretManagement..."
+          Write-Output "Installing Microsoft.PowerShell.SecretManagement..."
           Install-PSResource -Name Microsoft.PowerShell.SecretManagement -Scope CurrentUser -TrustRepository -Verbose
 
           # Verify version
           $version = (Get-Module Microsoft.PowerShell.PSResourceGet -ListAvailable | Sort-Object Version -Descending | Select-Object -First 1).Version
-          Write-Host "✅ PSResourceGet Version: $version"
+          Write-Output "✅ PSResourceGet Version: $version"
       
       - name: Run Pester tests
         shell: pwsh
@@ -93,11 +93,11 @@ jobs:
           }
           
           if ($results) {
-            Write-Host "❌ PSScriptAnalyzer found $($results.Count) issues:"
+            Write-Output "❌ PSScriptAnalyzer found $($results.Count) issues:"
             $results | Format-Table -Property RuleName,Severity,ScriptName,Line -AutoSize
             throw "PSScriptAnalyzer validation failed"
           }
-          Write-Host "✅ PSScriptAnalyzer passed!"
+          Write-Output "✅ PSScriptAnalyzer passed!"
       
       - name: Publish to GitHub Packages
         shell: pwsh
@@ -114,9 +114,9 @@ jobs:
           # � Load PackageRepoProvider based on bootstrap strategy
           # TODO: Enable GitHub Packages mode after first successful publish
           if ($useGitHubPackages) {
-            Write-Host ""
-            Write-Host "📦 Installing K.PSGallery.PackageRepoProvider from GitHub Packages (stable, one-version-behind)..."
-            Write-Host "   Source: https://nuget.pkg.github.com/GrexyLoco/index.json"
+            Write-Output ""
+            Write-Output "📦 Installing K.PSGallery.PackageRepoProvider from GitHub Packages (stable, one-version-behind)..."
+            Write-Output "   Source: https://nuget.pkg.github.com/GrexyLoco/index.json"
             
             try {
               # Bootstrap: Use Microsoft's cmdlets directly (our wrapper functions not yet available)
@@ -140,20 +140,20 @@ jobs:
                 -Verbose
               
               Import-Module K.PSGallery.PackageRepoProvider -Force -Verbose
-              Write-Host "✅ Successfully loaded PackageRepoProvider from GitHub Packages"
-              Write-Host "   ℹ️  GitHub Provider automatically loaded via RequiredModules"
+              Write-Output "✅ Successfully loaded PackageRepoProvider from GitHub Packages"
+              Write-Output "   ℹ️  GitHub Provider automatically loaded via RequiredModules"
             }
             catch {
-              Write-Host ""
-              Write-Host "❌ Failed to install from GitHub Packages!"
-              Write-Host ""
-              Write-Host "💡 Troubleshooting tips:"
-              Write-Host "   1. Check if module is published: https://github.com/GrexyLoco?tab=packages"
-              Write-Host "   2. Verify GITHUB_TOKEN has packages:read permission"
-              Write-Host "   3. For first-time bootstrap: Set use-psgallery=false (use local Git)"
-              Write-Host "   4. Error details: $($_.Exception.Message)"
-              Write-Host ""
-              Write-Host "⚙️  Falling back to LOCAL mode..."
+              Write-Output ""
+              Write-Output "❌ Failed to install from GitHub Packages!"
+              Write-Output ""
+              Write-Output "💡 Troubleshooting tips:"
+              Write-Output "   1. Check if module is published: https://github.com/GrexyLoco?tab=packages"
+              Write-Output "   2. Verify GITHUB_TOKEN has packages:read permission"
+              Write-Output "   3. For first-time bootstrap: Set use-psgallery=false (use local Git)"
+              Write-Output "   4. Error details: $($_.Exception.Message)"
+              Write-Output ""
+              Write-Output "⚙️  Falling back to LOCAL mode..."
               # Don't throw - fall through to LOCAL mode
               $useGitHubPackages = $false
             }
@@ -161,15 +161,15 @@ jobs:
           
           # LOCAL mode (bootstrap or fallback)
           if (-not $useGitHubPackages) {
-            Write-Host ""
-            Write-Host "📦 Importing LOCAL K.PSGallery.PackageRepoProvider (bootstrap/breaking-changes mode)..."
-            Write-Host "   Path: ./K.PSGallery.PackageRepoProvider.psd1"
-            Write-Host "   ℹ️  Using current Git checkout (self-hosting)"
-            Write-Host "   ℹ️  GitHub Provider will be installed automatically via RequiredModules"
+            Write-Output ""
+            Write-Output "📦 Importing LOCAL K.PSGallery.PackageRepoProvider (bootstrap/breaking-changes mode)..."
+            Write-Output "   Path: ./K.PSGallery.PackageRepoProvider.psd1"
+            Write-Output "   ℹ️  Using current Git checkout (self-hosting)"
+            Write-Output "   ℹ️  GitHub Provider will be installed automatically via RequiredModules"
             
             # Pre-register GitHub Packages repository for RequiredModules dependency resolution
-            Write-Host ""
-            Write-Host "🔧 Pre-registering GitHub Packages repository for RequiredModules..."
+            Write-Output ""
+            Write-Output "🔧 Pre-registering GitHub Packages repository for RequiredModules..."
             $secureToken = ConvertTo-SecureString $env:GITHUB_TOKEN -AsPlainText -Force
             $credential = [PSCredential]::new('token', $secureToken)
             
@@ -180,7 +180,7 @@ jobs:
             
             # Import PackageRepoProvider (RequiredModules will auto-install GitHub Provider)
             Import-Module ./K.PSGallery.PackageRepoProvider.psd1 -Force -Verbose
-            Write-Host "✅ PackageRepoProvider loaded (GitHub Provider auto-installed via RequiredModules)"
+            Write-Output "✅ PackageRepoProvider loaded (GitHub Provider auto-installed via RequiredModules)"
           }
           
           # Use PackageRepoProvider public API (provider routing is transparent!)
@@ -188,55 +188,22 @@ jobs:
           $repoName = "1d70f-Repo"
           $registryUri = "https://nuget.pkg.github.com/GrexyLoco/index.json"
           
-          Write-Host ""
-          Write-Host "🔧 Registering repository: $repoName"
-          Write-Host "   URI: $registryUri"
+          Write-Output ""
+          Write-Output "🔧 Registering repository: $repoName"
+          Write-Output "   URI: $registryUri"
           Register-PackageRepo -RepositoryName $repoName -RegistryUri $registryUri -Token $env:GITHUB_TOKEN -Trusted
           
-          # 📦 Build .nupkg (avoids Author Runspace Bug in PSResourceGet)
-          Write-Host ""
-          Write-Host "🔨 Building .nupkg file..."
-          Write-Host "   This bypasses the Author Runspace Bug by skipping ValidateModuleManifest()"
-          
-          $modulePath = "./K.PSGallery.PackageRepoProvider.psd1"
-          $artifactsDir = "./artifacts"
-          
-          # Create artifacts directory
-          if (-not (Test-Path $artifactsDir)) {
-            New-Item -ItemType Directory -Path $artifactsDir | Out-Null
-          }
-          
-          # Compress module to .nupkg
-          $compressParams = @{
-            Path = $modulePath
-            DestinationPath = $artifactsDir
-          }
-          
-          Write-Host "   Compressing: $modulePath"
-          Write-Host "   Destination: $artifactsDir"
-          
-          Compress-PSResource @compressParams -Verbose
-          
-          # Find the created .nupkg file
-          $nupkgFile = Get-ChildItem -Path $artifactsDir -Filter "*.nupkg" | Select-Object -First 1
-          
-          if (-not $nupkgFile) {
-            throw "Failed to create .nupkg file in $artifactsDir"
-          }
-          
-          Write-Host "✅ .nupkg created: $($nupkgFile.Name)"
-          Write-Host "   Size: $([math]::Round($nupkgFile.Length / 1KB, 2)) KB"
-          
-          # Publish using pre-built .nupkg (NO Author bug, NO -SkipModuleManifestValidate needed!)
-          Write-Host ""
-          Write-Host "📤 Publishing pre-built .nupkg to GitHub Packages..."
-          Write-Host "   Using: Publish-Package -NupkgPath (bypasses Author Runspace Bug)"
+          # Publish using our own PackageRepoProvider
+          # The module automatically builds .nupkg to bypass Author Runspace Bug
+          Write-Output ""
+          Write-Output "📤 Publishing K.PSGallery.PackageRepoProvider to GitHub Packages..."
+          Write-Output "   Module will automatically build .nupkg to bypass Author Runspace Bug"
           
           try {
-            Publish-Package -RepositoryName $repoName -NupkgPath $nupkgFile.FullName -Token $env:GITHUB_TOKEN
+            Publish-Package -RepositoryName $repoName -Token $env:GITHUB_TOKEN -Verbose
             
-            Write-Host ""
-            Write-Host "✅ Module published successfully to GitHub Packages!" -ForegroundColor Green
+            Write-Output ""
+            Write-Output "✅ Module published successfully to GitHub Packages!"
             
             # GitHub Actions Step Summary
             $summary = @"
@@ -277,12 +244,12 @@ jobs:
           "@
             
             $summary | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8
-            Write-Host "📊 Summary written to GitHub Actions UI"
+            Write-Output "📊 Summary written to GitHub Actions UI"
           }
           catch {
-            Write-Host ""
-            Write-Host "❌ PUBLISH FAILED" -ForegroundColor Red
-            Write-Host "💥 Error: $($_.Exception.Message)" -ForegroundColor Red
+            Write-Output ""
+            Write-Output "❌ PUBLISH FAILED"
+            Write-Output "💥 Error: $($_.Exception.Message)"
             
             # GitHub Actions Step Summary - Error
             $errorSummary = @"
@@ -326,6 +293,6 @@ jobs:
           "@
             
             $errorSummary | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8
-            Write-Host "📊 Error summary written to GitHub Actions UI"
+            Write-Output "📊 Error summary written to GitHub Actions UI"
             throw
           }
