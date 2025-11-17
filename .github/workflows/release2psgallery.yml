@@ -167,7 +167,7 @@ jobs:
             Write-Host "   ℹ️  Using current Git checkout (self-hosting)"
             Write-Host "   ℹ️  GitHub Provider will be installed automatically via RequiredModules"
             
-            # Pre-register GitHub Packages repository for RequiredModules installation
+            # Pre-register GitHub Packages repository for RequiredModules dependency resolution
             Write-Host ""
             Write-Host "🔧 Pre-registering GitHub Packages repository for RequiredModules..."
             $secureToken = ConvertTo-SecureString $env:GITHUB_TOKEN -AsPlainText -Force
@@ -176,10 +176,7 @@ jobs:
             Register-PSResourceRepository -Name 'GrexyLoco-Bootstrap' `
               -Uri 'https://nuget.pkg.github.com/GrexyLoco/index.json' `
               -Trusted `
-              -Credential $credential `
               -Verbose
-            
-            Write-Host "✅ GitHub Packages repository pre-registered"
             
             # Import PackageRepoProvider (RequiredModules will auto-install GitHub Provider)
             Import-Module ./K.PSGallery.PackageRepoProvider.psd1 -Force -Verbose
