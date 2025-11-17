@@ -18,6 +18,11 @@ function Publish-Package {
     .PARAMETER ModuleName
         The name of the module to publish.
     
+    .PARAMETER NupkgPath
+        The path to a pre-built .nupkg file. When specified, publishes the .nupkg directly
+        instead of packing from a module directory. This bypasses the Author Runspace Bug
+        in PSResourceGet by using Publish-PSResource -NupkgPath.
+    
     .PARAMETER Credential
         PSCredential object for authenticating with the registry. Use this for interactive scenarios.
     
@@ -41,6 +46,11 @@ function Publish-Package {
         Publish-Package -RepositoryName 'MyGitHub' -ModulePath './MyModule' -Credential $cred
         
         Publishes a specific module.
+    
+    .EXAMPLE
+        Publish-Package -RepositoryName 'MyGitHub' -NupkgPath './artifacts/MyModule.1.0.0.nupkg' -Token $env:GITHUB_TOKEN
+        
+        Publishes a pre-built .nupkg file (avoids Author Runspace Bug).
     #>
     [CmdletBinding(DefaultParameterSetName = 'AutoDiscoveryCredential')]
     param(
@@ -53,16 +63,23 @@ function Publish-Package {
         [ValidateScript({ Test-Path $_ -PathType Container })]
         [string]$ModulePath,
 
+        [Parameter(Mandatory, ParameterSetName = 'NupkgCredential')]
+        [Parameter(Mandatory, ParameterSetName = 'NupkgToken')]
+        [ValidateScript({ Test-Path $_ -PathType Leaf })]
+        [string]$NupkgPath,
+
         [Parameter()]
         [string]$ModuleName,
 
         [Parameter(Mandatory, ParameterSetName = 'AutoDiscoveryCredential')]
         [Parameter(Mandatory, ParameterSetName = 'ExplicitPathCredential')]
+        [Parameter(Mandatory, ParameterSetName = 'NupkgCredential')]
         [ValidateNotNull()]
         [pscredential]$Credential,
 
         [Parameter(Mandatory, ParameterSetName = 'AutoDiscoveryToken')]
         [Parameter(Mandatory, ParameterSetName = 'ExplicitPathToken')]
+        [Parameter(Mandatory, ParameterSetName = 'NupkgToken')]
         [ValidateNotNullOrEmpty()]
         [string]$Token
     )
@@ -79,26 +96,47 @@ function Publish-Package {
         $Credential = [System.Management.Automation.PSCredential]::new('token', $secureToken)
     }
     
-    # 1. Auto-discovery if ModulePath not specified
-    if (-not $PSBoundParameters.ContainsKey('ModulePath')) {
+    # 1. Determine publish mode: Nupkg or Path-based
+    $publishMode = if ($PSBoundParameters.ContainsKey('NupkgPath')) { 'Nupkg' } else { 'Path' }
+    
+    # 2. Auto-discovery if ModulePath not specified (Path mode only)
+    if ($publishMode -eq 'Path' -and -not $PSBoundParameters.ContainsKey('ModulePath')) {
         $ModulePath = Resolve-ModulePath -AutoDiscovery
     }
     
-    # 2. Get provider from registered repository
+    # 3. Get provider from registered repository
     $provider = Get-RegisteredRepoProvider -RepositoryName $RepositoryName
     
-    # 3. Load provider module
+    # 4. Load provider module
     $providerModule = Get-RepoProvider -Provider $provider
     
-    # 4. Route to provider backend
+    # 5. Route to provider backend
     # Build parameters for provider (always pass Credential, not Token)
     $providerParams = @{
         RepositoryName = $RepositoryName
-        ModulePath = $ModulePath
         Credential = $Credential
     }
-    if ($ModuleName) {
-        $providerParams['ModuleName'] = $ModuleName
+    
+    if ($publishMode -eq 'Nupkg') {
+        # Nupkg mode: Pass pre-built .nupkg file
+        $providerParams['NupkgPath'] = $NupkgPath
+        Write-SafeInfoLog -Message "Publishing pre-built .nupkg to repository '$RepositoryName'" -Additional @{
+            Repository = $RepositoryName
+            Provider = $provider
+            NupkgPath = $NupkgPath
+        }
+    }
+    else {
+        # Path mode: Pass module directory (legacy)
+        $providerParams['ModulePath'] = $ModulePath
+        if ($ModuleName) {
+            $providerParams['ModuleName'] = $ModuleName
+        }
+        Write-SafeInfoLog -Message "Publishing module from path to repository '$RepositoryName'" -Additional @{
+            Repository = $RepositoryName
+            Provider = $provider
+            ModulePath = $ModulePath
+        }
     }
     
     $invokeCommand = "$($providerModule.Name)\Invoke-Publish"
@@ -107,6 +145,6 @@ function Publish-Package {
     Write-SafeInfoLog -Message "Successfully published package to repository '$RepositoryName' using $provider provider" -Additional @{
         Repository = $RepositoryName
         Provider = $provider
-        Path = $Path
+        PublishMode = $publishMode
     }
 }
