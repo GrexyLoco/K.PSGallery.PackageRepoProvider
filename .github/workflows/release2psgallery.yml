@@ -141,7 +141,7 @@ jobs:
               
               Import-Module K.PSGallery.PackageRepoProvider -Force -Verbose
               Write-Output "✅ Successfully loaded PackageRepoProvider from GitHub Packages"
-              Write-Output "   ℹ️  GitHub Provider automatically loaded via RequiredModules"
+              Write-Output "   ℹ️  GitHub Provider will be auto-installed if needed (pluggable architecture)"
             }
             catch {
               Write-Output ""
@@ -165,22 +165,32 @@ jobs:
             Write-Output "📦 Importing LOCAL K.PSGallery.PackageRepoProvider (bootstrap/breaking-changes mode)..."
             Write-Output "   Path: ./K.PSGallery.PackageRepoProvider.psd1"
             Write-Output "   ℹ️  Using current Git checkout (self-hosting)"
-            Write-Output "   ℹ️  GitHub Provider will be installed automatically via RequiredModules"
             
-            # Pre-register GitHub Packages repository for RequiredModules dependency resolution
+            # Install GitHub provider manually (pluggable architecture - no RequiredModules)
             Write-Output ""
-            Write-Output "🔧 Pre-registering GitHub Packages repository for RequiredModules..."
+            Write-Output "🔧 Installing GitHub provider module..."
             $secureToken = ConvertTo-SecureString $env:GITHUB_TOKEN -AsPlainText -Force
             $credential = [PSCredential]::new('token', $secureToken)
             
+            # Register temporary repository for provider installation
             Register-PSResourceRepository -Name 'GrexyLoco-Bootstrap' `
               -Uri 'https://nuget.pkg.github.com/GrexyLoco/index.json' `
               -Trusted `
               -Verbose
             
-            # Import PackageRepoProvider (RequiredModules will auto-install GitHub Provider)
+            # Install GitHub provider module
+            Install-PSResource -Name 'K.PSGallery.PackageRepoProvider.GitHub' `
+              -Repository 'GrexyLoco-Bootstrap' `
+              -Scope CurrentUser `
+              -TrustRepository `
+              -Credential $credential `
+              -Verbose
+            
+            Write-Output "✅ GitHub provider installed"
+            
+            # Import PackageRepoProvider (providers loaded dynamically when needed)
             Import-Module ./K.PSGallery.PackageRepoProvider.psd1 -Force -Verbose
-            Write-Output "✅ PackageRepoProvider loaded (GitHub Provider auto-installed via RequiredModules)"
+            Write-Output "✅ PackageRepoProvider loaded (providers will be loaded dynamically)"
           }
           
           # Use PackageRepoProvider public API (provider routing is transparent!)
