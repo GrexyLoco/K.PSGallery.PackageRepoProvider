@@ -193,12 +193,47 @@ jobs:
           Write-Host "   URI: $registryUri"
           Register-PackageRepo -RepositoryName $repoName -RegistryUri $registryUri -Token $env:GITHUB_TOKEN -Trusted
           
-          # Publish using our own PackageRepoProvider
+          # 📦 Build .nupkg (avoids Author Runspace Bug in PSResourceGet)
           Write-Host ""
-          Write-Host "📤 Publishing K.PSGallery.PackageRepoProvider to GitHub Packages..."
+          Write-Host "🔨 Building .nupkg file..."
+          Write-Host "   This bypasses the Author Runspace Bug by skipping ValidateModuleManifest()"
+          
+          $modulePath = "./K.PSGallery.PackageRepoProvider.psd1"
+          $artifactsDir = "./artifacts"
+          
+          # Create artifacts directory
+          if (-not (Test-Path $artifactsDir)) {
+            New-Item -ItemType Directory -Path $artifactsDir | Out-Null
+          }
+          
+          # Compress module to .nupkg
+          $compressParams = @{
+            Path = $modulePath
+            DestinationPath = $artifactsDir
+          }
+          
+          Write-Host "   Compressing: $modulePath"
+          Write-Host "   Destination: $artifactsDir"
+          
+          Compress-PSResource @compressParams -Verbose
+          
+          # Find the created .nupkg file
+          $nupkgFile = Get-ChildItem -Path $artifactsDir -Filter "*.nupkg" | Select-Object -First 1
+          
+          if (-not $nupkgFile) {
+            throw "Failed to create .nupkg file in $artifactsDir"
+          }
+          
+          Write-Host "✅ .nupkg created: $($nupkgFile.Name)"
+          Write-Host "   Size: $([math]::Round($nupkgFile.Length / 1KB, 2)) KB"
+          
+          # Publish using pre-built .nupkg (NO Author bug, NO -SkipModuleManifestValidate needed!)
+          Write-Host ""
+          Write-Host "📤 Publishing pre-built .nupkg to GitHub Packages..."
+          Write-Host "   Using: Publish-Package -NupkgPath (bypasses Author Runspace Bug)"
           
           try {
-            Publish-Package -RepositoryName $repoName -Token $env:GITHUB_TOKEN
+            Publish-Package -RepositoryName $repoName -NupkgPath $nupkgFile.FullName -Token $env:GITHUB_TOKEN
             
             Write-Host ""
             Write-Host "✅ Module published successfully to GitHub Packages!" -ForegroundColor Green
@@ -214,6 +249,7 @@ jobs:
           | 🎯 Repository | ``$repoName`` |
           | 🔗 Registry | ``$registryUri`` |
           | 🔄 Load Mode | $(if ($useGitHubPackages) { '📦 GitHub Packages (stable)' } else { '🏗️ LOCAL Bootstrap' }) |
+          | 📦 Build Mode | ✨ .nupkg Pre-Build (Author Bug Fix) |
           | 📦 Package URL | [View Package](https://github.com/GrexyLoco?tab=packages) |
           
           ### 🚀 Installation
