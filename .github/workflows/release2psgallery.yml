@@ -204,11 +204,13 @@ jobs:
           Register-PackageRepo -RepositoryName $repoName -RegistryUri $registryUri -Token $env:GITHUB_TOKEN -Trusted
           
           # Publish using our own PackageRepoProvider
+          # The module automatically builds .nupkg to bypass Author Runspace Bug
           Write-Output ""
           Write-Output "📤 Publishing K.PSGallery.PackageRepoProvider to GitHub Packages..."
+          Write-Output "   Module will automatically build .nupkg to bypass Author Runspace Bug"
           
           try {
-            Publish-Package -RepositoryName $repoName -Token $env:GITHUB_TOKEN
+            Publish-Package -RepositoryName $repoName -Token $env:GITHUB_TOKEN -Verbose
             
             Write-Output ""
             Write-Output "✅ Module published successfully to GitHub Packages!"
@@ -224,6 +226,7 @@ jobs:
           | 🎯 Repository | ``$repoName`` |
           | 🔗 Registry | ``$registryUri`` |
           | 🔄 Load Mode | $(if ($useGitHubPackages) { '📦 GitHub Packages (stable)' } else { '🏗️ LOCAL Bootstrap' }) |
+          | 📦 Build Mode | ✨ .nupkg Pre-Build (Author Bug Fix) |
           | 📦 Package URL | [View Package](https://github.com/GrexyLoco?tab=packages) |
           
           ### 🚀 Installation
