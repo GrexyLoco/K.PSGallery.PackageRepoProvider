@@ -141,7 +141,17 @@ jobs:
               
               Import-Module K.PSGallery.PackageRepoProvider -Force -Verbose
               Write-Host "✅ Successfully loaded PackageRepoProvider from GitHub Packages"
-              Write-Host "   ℹ️  GitHub Provider automatically loaded via RequiredModules"
+              
+              # Install GitHub Provider from same repository (RequiredModules doesn't auto-install from authenticated repos)
+              Write-Host ""
+              Write-Host "📦 Installing GitHub Provider from GitHub Packages..."
+              Install-PSResource -Name K.PSGallery.PackageRepoProvider.GitHub `
+                -Repository 'GrexyLoco-Temp' `
+                -Scope CurrentUser `
+                -TrustRepository `
+                -Credential $credential `
+                -Verbose
+              Write-Host "   ℹ️  GitHub Provider installed (pluggable architecture)"
             }
             catch {
               Write-Host ""
@@ -178,9 +188,19 @@ jobs:
               -Trusted `
               -Verbose
             
-            # Import PackageRepoProvider (RequiredModules will auto-install GitHub Provider)
+            # Install GitHub Provider first (RequiredModules needs credentials for authenticated repos)
+            Write-Host ""
+            Write-Host "📦 Installing GitHub Provider from GitHub Packages..."
+            Install-PSResource -Name K.PSGallery.PackageRepoProvider.GitHub `
+              -Repository 'GrexyLoco-Bootstrap' `
+              -Scope CurrentUser `
+              -TrustRepository `
+              -Credential $credential `
+              -Verbose
+            
+            # Import PackageRepoProvider (GitHub Provider now available)
             Import-Module ./K.PSGallery.PackageRepoProvider.psd1 -Force -Verbose
-            Write-Host "✅ PackageRepoProvider loaded (GitHub Provider auto-installed via RequiredModules)"
+            Write-Host "✅ PackageRepoProvider loaded (GitHub Provider pre-installed)"
           }
           
           # Use PackageRepoProvider public API (provider routing is transparent!)
