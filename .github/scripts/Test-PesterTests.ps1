@@ -3,8 +3,11 @@
     Run Pester tests with specified configuration.
 
 .DESCRIPTION
-    Fallback script for running Pester tests until K.Actions.PesterTestDiscovery is available.
-    Installs Pester, runs tests, and outputs results.
+    Uses K.PSGallery.PesterTestDiscovery for intelligent test discovery.
+    Falls back to manual Pester execution if discovery module is not available.
+    
+    TODO: Change to load K.PSGallery.PesterTestDiscovery from GitHub Packages 
+    after the module is published to the package feed.
 
 .PARAMETER Path
     Path to test directory or specific test file.
@@ -29,15 +32,87 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $InformationPreference = 'Continue'
 
-try {
+#region Helper Functions
+
+function Import-PesterTestDiscovery {
+    [CmdletBinding()]
+    param()
+    
+    # TODO: Load from GitHub Packages when published
+    Write-Information "📦 Loading K.PSGallery.PesterTestDiscovery (LOCAL for initial release)..."
+    Write-Information "   ⚠️  TODO: Migrate to GitHub Packages when published"
+    
+    $discoveryPath = '../K.PSGallery.PesterTestDiscovery/K.PSGallery.PesterTestDiscovery.psd1'
+    
+    if (Test-Path $discoveryPath) {
+        try {
+            Import-Module $discoveryPath -Force -Verbose
+            Write-Information "✅ PesterTestDiscovery loaded from local path"
+            return $true
+        }
+        catch {
+            Write-Information "⚠️  Failed to import PesterTestDiscovery: $($_.Exception.Message)"
+            return $false
+        }
+    }
+    else {
+        Write-Information "⚠️  PesterTestDiscovery not found at: $discoveryPath"
+        return $false
+    }
+}
+
+function Install-Pester {
+    [CmdletBinding()]
+    param()
+    
     Write-Information "🧪 Installing Pester..."
     Install-PSResource -Name Pester -Scope CurrentUser -TrustRepository -SkipDependencyCheck -Verbose
+}
+
+function Invoke-PesterWithDiscovery {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Path,
+        
+        [Parameter(Mandatory)]
+        [string]$Output
+    )
     
-    Write-Information ""
-    Write-Information "🧪 Running Pester tests..."
+    Write-Information "🔍 Using PesterTestDiscovery for intelligent test discovery..."
+    
+    # Use PesterTestDiscovery to find test files
+    $testFiles = Invoke-TestDiscovery -RootPath $Path
+    
+    if ($testFiles.Count -eq 0) {
+        Write-Information "⚠️  No test files found by PesterTestDiscovery"
+        return Invoke-PesterManual -Path $Path -Output $Output
+    }
+    
+    Write-Information "   Found $($testFiles.Count) test file(s)"
+    
+    # Run Pester with discovered files
+    $config = New-PesterConfiguration
+    $config.Run.Path = $testFiles
+    $config.Output.Verbosity = $Output
+    $config.TestResult.Enabled = $true
+    
+    return Invoke-Pester -Configuration $config
+}
+
+function Invoke-PesterManual {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Path,
+        
+        [Parameter(Mandatory)]
+        [string]$Output
+    )
+    
+    Write-Information "🧪 Running Pester tests (manual discovery)..."
     Write-Information "   Path: $Path"
     Write-Information "   Output: $Output"
-    Write-Information ""
     
     # Run Pester tests
     $config = New-PesterConfiguration
@@ -45,7 +120,31 @@ try {
     $config.Output.Verbosity = $Output
     $config.TestResult.Enabled = $true
     
-    $result = Invoke-Pester -Configuration $config
+    return Invoke-Pester -Configuration $config
+}
+
+#endregion
+
+try {
+    # Install Pester
+    Install-Pester
+    
+    Write-Information ""
+    
+    # Try to use PesterTestDiscovery
+    $useDiscovery = Import-PesterTestDiscovery
+    
+    Write-Information ""
+    Write-Information "🧪 Running Pester tests..."
+    Write-Information ""
+    
+    # Run tests
+    if ($useDiscovery) {
+        $result = Invoke-PesterWithDiscovery -Path $Path -Output $Output
+    }
+    else {
+        $result = Invoke-PesterManual -Path $Path -Output $Output
+    }
     
     # Check results
     if ($result.FailedCount -gt 0) {

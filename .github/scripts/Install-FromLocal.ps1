@@ -18,6 +18,65 @@ param(
 $ErrorActionPreference = 'Stop'
 $InformationPreference = 'Continue'
 
+#region Helper Functions
+
+function Register-BootstrapRepository {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$RepositoryName,
+        
+        [Parameter(Mandatory)]
+        [string]$RepositoryUri
+    )
+    
+    Write-Information "🔧 Pre-registering GitHub Packages repository: $RepositoryName..."
+    Register-PSResourceRepository -Name $RepositoryName `
+        -Uri $RepositoryUri `
+        -Trusted `
+        -Verbose
+}
+
+function Install-LocalGitHubProvider {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$RepositoryName,
+        
+        [Parameter(Mandatory)]
+        [PSCredential]$Credential
+    )
+    
+    Write-Information "📥 Installing GitHub Provider from GitHub Packages..."
+    Install-PSResource -Name K.PSGallery.PackageRepoProvider.GitHub `
+        -Repository $RepositoryName `
+        -Scope CurrentUser `
+        -TrustRepository `
+        -Credential $Credential `
+        -Verbose
+}
+
+function Import-GitHubProvider {
+    [CmdletBinding()]
+    param()
+    
+    Write-Information "📂 Importing GitHub Provider..."
+    Import-Module K.PSGallery.PackageRepoProvider.GitHub -Force -Verbose
+}
+
+function Import-LocalPackageRepoProvider {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$ManifestPath
+    )
+    
+    Write-Information "📂 Importing LOCAL PackageRepoProvider from: $ManifestPath..."
+    Import-Module $ManifestPath -Force -Verbose
+}
+
+#endregion
+
 Write-Information ""
 Write-Information "📦 Importing LOCAL K.PSGallery.PackageRepoProvider (bootstrap mode)..."
 Write-Information "   Strategy: Self-hosting, current Git checkout"
@@ -26,29 +85,25 @@ Write-Information ""
 
 # Convert SecureString to PSCredential
 $credential = [PSCredential]::new('token', $SecureToken)
+$repoName = 'GrexyLoco-Bootstrap'
+$repoUri = 'https://nuget.pkg.github.com/GrexyLoco/index.json'
+$localManifest = './K.PSGallery.PackageRepoProvider.psd1'
 
 # Pre-register GitHub Packages repository for provider dependencies
-Write-Information "🔧 Pre-registering GitHub Packages repository..."
-Register-PSResourceRepository -Name 'GrexyLoco-Bootstrap' `
-    -Uri 'https://nuget.pkg.github.com/GrexyLoco/index.json' `
-    -Trusted `
-    -Verbose
+Register-BootstrapRepository -RepositoryName $repoName -RepositoryUri $repoUri
 
-# Install GitHub Provider dependency (RequiredModules needs credentials for authenticated repos)
+# Install GitHub Provider dependency
 Write-Information ""
-Write-Information "📥 Installing GitHub Provider from GitHub Packages..."
-Install-PSResource -Name K.PSGallery.PackageRepoProvider.GitHub `
-    -Repository 'GrexyLoco-Bootstrap' `
-    -Scope CurrentUser `
-    -TrustRepository `
-    -Credential $credential `
-    -Verbose
+Install-LocalGitHubProvider -RepositoryName $repoName -Credential $credential
+
+# Import GitHub Provider to verify availability
+Write-Information ""
+Import-GitHubProvider
 
 # Import local PackageRepoProvider
 Write-Information ""
-Write-Information "📂 Importing LOCAL PackageRepoProvider..."
-Import-Module ./K.PSGallery.PackageRepoProvider.psd1 -Force -Verbose
+Import-LocalPackageRepoProvider -ManifestPath $localManifest
 
 Write-Information ""
 Write-Information "✅ PackageRepoProvider loaded (LOCAL bootstrap)"
-Write-Information "   ℹ️  GitHub Provider pre-installed for on-demand loading"
+Write-Information "   ℹ️  GitHub Provider pre-installed and imported"
