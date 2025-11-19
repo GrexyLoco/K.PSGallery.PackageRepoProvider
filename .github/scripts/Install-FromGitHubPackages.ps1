@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Install PackageRepoProvider from GitHub Packages (stable mode).
 
@@ -16,26 +16,27 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$InformationPreference = 'Continue'
 
-Write-Host ""
-Write-Host "📦 Installing K.PSGallery.PackageRepoProvider from GitHub Packages..."
-Write-Host "   Strategy: Stable, one-version-behind"
-Write-Host "   Source: https://nuget.pkg.github.com/GrexyLoco/index.json"
-Write-Host ""
+Write-Information ""
+Write-Information "📦 Installing K.PSGallery.PackageRepoProvider from GitHub Packages..."
+Write-Information "   Strategy: Stable, one-version-behind"
+Write-Information "   Source: https://nuget.pkg.github.com/GrexyLoco/index.json"
+Write-Information ""
 
 # Convert SecureString to PSCredential
 $credential = [PSCredential]::new('token', $SecureToken)
 
 # Register temporary repository (no credentials stored)
-Write-Host "🔧 Registering temporary repository..."
+Write-Information "🔧 Registering temporary repository..."
 Register-PSResourceRepository -Name 'GrexyLoco-Temp' `
     -Uri 'https://nuget.pkg.github.com/GrexyLoco/index.json' `
     -Trusted `
     -Verbose
 
 # Install PackageRepoProvider from GitHub Packages
-Write-Host ""
-Write-Host "📥 Installing K.PSGallery.PackageRepoProvider..."
+Write-Information ""
+Write-Information "📥 Installing K.PSGallery.PackageRepoProvider..."
 Install-PSResource -Name K.PSGallery.PackageRepoProvider `
     -Repository 'GrexyLoco-Temp' `
     -Scope CurrentUser `
@@ -44,13 +45,13 @@ Install-PSResource -Name K.PSGallery.PackageRepoProvider `
     -Verbose
 
 # Import module
-Write-Host ""
-Write-Host "📂 Importing K.PSGallery.PackageRepoProvider..."
+Write-Information ""
+Write-Information "📂 Importing K.PSGallery.PackageRepoProvider..."
 Import-Module K.PSGallery.PackageRepoProvider -Force -Verbose
 
 # Install GitHub Provider (RequiredModules doesn't auto-install from authenticated repos)
-Write-Host ""
-Write-Host "📥 Installing GitHub Provider from GitHub Packages..."
+Write-Information ""
+Write-Information "📥 Installing GitHub Provider from GitHub Packages..."
 Install-PSResource -Name K.PSGallery.PackageRepoProvider.GitHub `
     -Repository 'GrexyLoco-Temp' `
     -Scope CurrentUser `
@@ -58,6 +59,6 @@ Install-PSResource -Name K.PSGallery.PackageRepoProvider.GitHub `
     -Credential $credential `
     -Verbose
 
-Write-Host ""
-Write-Host "✅ PackageRepoProvider loaded from GitHub Packages (stable)"
-Write-Host "   ℹ️  GitHub Provider installed (pluggable architecture)"
+Write-Information ""
+Write-Information "✅ PackageRepoProvider loaded from GitHub Packages (stable)"
+Write-Information "   ℹ️  GitHub Provider installed (pluggable architecture)"

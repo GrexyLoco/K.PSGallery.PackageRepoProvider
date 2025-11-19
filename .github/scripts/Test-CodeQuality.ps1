@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Run PSScriptAnalyzer on production code.
 
@@ -20,9 +20,10 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$InformationPreference = 'Continue'
 
-Write-Host "📋 Running PSScriptAnalyzer..."
-Write-Host ""
+Write-Information "📋 Running PSScriptAnalyzer..."
+Write-Information ""
 
 # Install PSScriptAnalyzer
 Install-PSResource -Name PSScriptAnalyzer `
@@ -31,9 +32,9 @@ Install-PSResource -Name PSScriptAnalyzer `
     -SkipDependencyCheck `
     -Verbose
 
-Write-Host ""
-Write-Host "🔍 Scanning paths:"
-$Paths | ForEach-Object { Write-Host "   - $_" }
+Write-Information ""
+Write-Information "🔍 Scanning paths:"
+$Paths | ForEach-Object { Write-Information "   - $_" }
 
 # Scan production code (exclude tests)
 $results = $Paths | ForEach-Object { 
@@ -44,12 +45,12 @@ $results = $Paths | ForEach-Object {
 }
 
 if ($results) {
-    Write-Host ""
-    Write-Host "❌ PSScriptAnalyzer found $($results.Count) issues:"
-    Write-Host ""
+    Write-Information ""
+    Write-Information "❌ PSScriptAnalyzer found $($results.Count) issues:"
+    Write-Information ""
     $results | Format-Table -Property RuleName, Severity, ScriptName, Line -AutoSize
     throw "PSScriptAnalyzer validation failed"
 }
 
-Write-Host ""
-Write-Host "✅ PSScriptAnalyzer passed! No issues found."
+Write-Information ""
+Write-Information "✅ PSScriptAnalyzer passed! No issues found."

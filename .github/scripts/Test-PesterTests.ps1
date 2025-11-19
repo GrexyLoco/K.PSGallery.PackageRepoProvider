@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Run Pester tests with specified configuration.
 
@@ -27,16 +27,17 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+$InformationPreference = 'Continue'
 
 try {
-    Write-Host "🧪 Installing Pester..."
+    Write-Information "🧪 Installing Pester..."
     Install-PSResource -Name Pester -Scope CurrentUser -TrustRepository -SkipDependencyCheck -Verbose
     
-    Write-Host ""
-    Write-Host "🧪 Running Pester tests..."
-    Write-Host "   Path: $Path"
-    Write-Host "   Output: $Output"
-    Write-Host ""
+    Write-Information ""
+    Write-Information "🧪 Running Pester tests..."
+    Write-Information "   Path: $Path"
+    Write-Information "   Output: $Output"
+    Write-Information ""
     
     # Run Pester tests
     $config = New-PesterConfiguration
@@ -48,19 +49,17 @@ try {
     
     # Check results
     if ($result.FailedCount -gt 0) {
-        Write-Host ""
-        Write-Host "❌ Pester tests FAILED" -ForegroundColor Red
-        Write-Host "   Failed: $($result.FailedCount)" -ForegroundColor Red
-        Write-Host "   Passed: $($result.PassedCount)" -ForegroundColor Green
+        Write-Information ""
+        Write-Error "❌ Pester tests FAILED - Failed: $($result.FailedCount), Passed: $($result.PassedCount)"
         throw "Pester tests failed with $($result.FailedCount) failures"
     }
     
-    Write-Host ""
-    Write-Host "✅ All Pester tests passed!" -ForegroundColor Green
-    Write-Host "   Passed: $($result.PassedCount)" -ForegroundColor Green
+    Write-Information ""
+    Write-Information "✅ All Pester tests passed!"
+    Write-Information "   Passed: $($result.PassedCount)"
 }
 catch {
-    Write-Host ""
-    Write-Host "❌ Test execution failed: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Information ""
+    Write-Error "❌ Test execution failed: $($_.Exception.Message)"
     throw
 }

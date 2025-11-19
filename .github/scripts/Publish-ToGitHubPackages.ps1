@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Publish module to GitHub Packages using PackageRepoProvider.
 
@@ -21,6 +21,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$InformationPreference = 'Continue'
 
 # Convert SecureString to plaintext for API calls (trusted environment)
 $credential = [PSCredential]::new('token', $SecureToken)
@@ -40,26 +41,26 @@ $context = [PSCustomObject]@{
 
 try {
     # Register GitHub Packages repository
-    Write-Host ""
-    Write-Host "🔧 Registering repository: $repoName"
-    Write-Host "   URI: $registryUri"
+    Write-Information ""
+    Write-Information "🔧 Registering repository: $repoName"
+    Write-Information "   URI: $registryUri"
     Register-PackageRepo -RepositoryName $repoName -RegistryUri $registryUri -Token $token -Trusted
     
     # Publish using PackageRepoProvider public API
-    Write-Host ""
-    Write-Host "📤 Publishing K.PSGallery.PackageRepoProvider to GitHub Packages..."
+    Write-Information ""
+    Write-Information "📤 Publishing K.PSGallery.PackageRepoProvider to GitHub Packages..."
     Publish-Package -RepositoryName $repoName -Token $token
     
-    Write-Host ""
-    Write-Host "✅ Module published successfully to GitHub Packages!"
+    Write-Information ""
+    Write-Information "✅ Module published successfully to GitHub Packages!"
     
     # Write success summary
     & "$PSScriptRoot/Write-SuccessSummary.ps1" -Context $context
 }
 catch {
-    Write-Host ""
-    Write-Host "❌ PUBLISH FAILED" -ForegroundColor Red
-    Write-Host "💥 Error: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Information ""
+    Write-Information "❌ PUBLISH FAILED" -ForegroundColor Red
+    Write-Information "💥 Error: $($_.Exception.Message)" -ForegroundColor Red
     
     # Add error to context
     $context | Add-Member -NotePropertyName 'Error' -NotePropertyValue $_.Exception.Message -Force

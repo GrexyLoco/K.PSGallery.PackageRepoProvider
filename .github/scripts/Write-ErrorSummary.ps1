@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Write GitHub Actions error summary.
 
@@ -55,4 +55,4 @@ $errorSummary = @"
 "@
 
 $errorSummary | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8
-Write-Host "📊 Error summary written to GitHub Actions UI"
+Write-Information "📊 Error summary written to GitHub Actions UI"

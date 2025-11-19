@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Write GitHub Actions success summary.
 
@@ -51,4 +51,4 @@ Install-PackageModule -RepositoryName '$($Context.Repository)' -ModuleName '$($C
 "@
 
 $summary | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8
-Write-Host "📊 Success summary written to GitHub Actions UI"
+Write-Information "📊 Success summary written to GitHub Actions UI"
