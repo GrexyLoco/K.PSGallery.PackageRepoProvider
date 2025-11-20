@@ -57,49 +57,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Install PowerShell
+      - name: Initialize Environment
         shell: pwsh
-        run: |
-          Write-Output "PowerShell Version: $($PSVersionTable.PSVersion)"
-          
-          # Install latest PREVIEW version of PSResourceGet (1.2.0-preview3 fixes "No author" bug)
-          Write-Output "Installing Microsoft.PowerShell.PSResourceGet PREVIEW..."
-          Install-PSResource -Name Microsoft.PowerShell.PSResourceGet -Prerelease -Scope CurrentUser -TrustRepository -Reinstall -Verbose
-          
-          # Install SecretManagement (required dependency of PSResourceGet 1.2.0+)
-          # PSResourceGet 1.2.0+ requires SecretManagement even when explicit -Credential is provided
-          Write-Output "Installing Microsoft.PowerShell.SecretManagement..."
-          Install-PSResource -Name Microsoft.PowerShell.SecretManagement -Scope CurrentUser -TrustRepository -Verbose
-
-          # Verify version
-          $version = (Get-Module Microsoft.PowerShell.PSResourceGet -ListAvailable | Sort-Object Version -Descending | Select-Object -First 1).Version
-          Write-Output "✅ PSResourceGet Version: $version"
+        run: ./.github/scripts/Initialize-Environment.ps1
       
-      - name: Run Pester tests
+      - name: Run Pester Tests
         shell: pwsh
-        run: |
-          Install-PSResource -Name Pester -Scope CurrentUser -TrustRepository -SkipDependencyCheck
-          Invoke-Pester -Path ./Tests/Private/ -Output Detailed
+        run: ./.github/scripts/Test-PesterTests.ps1 -Path './Tests/Private/' -Output 'Detailed'
       
-      - name: Run PSScriptAnalyzer
+      - name: Run Code Quality Check
         shell: pwsh
-        run: |
-          Install-PSResource -Name PSScriptAnalyzer -Scope CurrentUser -TrustRepository -SkipDependencyCheck
-          
-          # Only scan production code (Public + Private folders), exclude tests and trailing whitespace warnings
-          $paths = @('./Public', './Private')
-          $results = $paths | ForEach-Object { 
-            Invoke-ScriptAnalyzer -Path $_ -Recurse -Severity Error,Warning -ExcludeRule PSAvoidTrailingWhitespace,PSReviewUnusedParameter 
-          }
-          
-          if ($results) {
-            Write-Output "❌ PSScriptAnalyzer found $($results.Count) issues:"
-            $results | Format-Table -Property RuleName,Severity,ScriptName,Line -AutoSize
-            throw "PSScriptAnalyzer validation failed"
-          }
-          Write-Output "✅ PSScriptAnalyzer passed!"
+        run: ./.github/scripts/Test-CodeQuality.ps1
       
-      - name: Publish to GitHub Packages
+      - name: Load and Publish Module
         shell: pwsh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -108,201 +78,32 @@ jobs:
             throw "GITHUB_TOKEN is not available"
           }
           
-          # Convert to boolean (case-insensitive: 'true', 'True', 'TRUE' all work)
+          # Convert token to SecureString
+          $secureToken = ConvertTo-SecureString $env:GITHUB_TOKEN -AsPlainText -Force
+          
+          # Load PackageRepoProvider based on USE_GITHUB_PACKAGES flag
           $useGitHubPackages = [System.Convert]::ToBoolean('${{ env.USE_GITHUB_PACKAGES }}')
           
-          # � Load PackageRepoProvider based on bootstrap strategy
-          # TODO: Enable GitHub Packages mode after first successful publish
           if ($useGitHubPackages) {
-            Write-Output ""
-            Write-Output "📦 Installing K.PSGallery.PackageRepoProvider from GitHub Packages (stable, one-version-behind)..."
-            Write-Output "   Source: https://nuget.pkg.github.com/GrexyLoco/index.json"
-            
+            Write-Host "📦 Loading from GitHub Packages (stable, one-version-behind)..."
             try {
-              # Bootstrap: Use Microsoft's cmdlets directly (our wrapper functions not yet available)
-              # Convert token to PSCredential
-              $secureToken = ConvertTo-SecureString $env:GITHUB_TOKEN -AsPlainText -Force
-              $credential = [PSCredential]::new('token', $secureToken)
-              
-              # Register temporary repo WITHOUT credentials (avoid vault requirement)
-              # Credentials will be provided at install time
-              Register-PSResourceRepository -Name 'GrexyLoco-Temp' `
-                -Uri 'https://nuget.pkg.github.com/GrexyLoco/index.json' `
-                -Trusted `
-                -Verbose
-              
-              # Install from GitHub Packages with credentials
-              Install-PSResource -Name K.PSGallery.PackageRepoProvider `
-                -Repository 'GrexyLoco-Temp' `
-                -Scope CurrentUser `
-                -TrustRepository `
-                -Credential $credential `
-                -Verbose
-              
-              Import-Module K.PSGallery.PackageRepoProvider -Force -Verbose
-              Write-Output "✅ Successfully loaded PackageRepoProvider from GitHub Packages"
-              Write-Output "   ℹ️  GitHub Provider will be auto-installed if needed (pluggable architecture)"
+              ./.github/scripts/Install-FromGitHubPackages.ps1 -SecureToken $secureToken
             }
             catch {
-              Write-Output ""
-              Write-Output "❌ Failed to install from GitHub Packages!"
-              Write-Output ""
-              Write-Output "💡 Troubleshooting tips:"
-              Write-Output "   1. Check if module is published: https://github.com/GrexyLoco?tab=packages"
-              Write-Output "   2. Verify GITHUB_TOKEN has packages:read permission"
-              Write-Output "   3. For first-time bootstrap: Set use-psgallery=false (use local Git)"
-              Write-Output "   4. Error details: $($_.Exception.Message)"
-              Write-Output ""
-              Write-Output "⚙️  Falling back to LOCAL mode..."
-              # Don't throw - fall through to LOCAL mode
+              Write-Host ""
+              Write-Host "❌ Failed to install from GitHub Packages!"
+              Write-Host "   Error: $($_.Exception.Message)"
+              Write-Host ""
+              Write-Host "⚙️  Falling back to LOCAL mode..."
               $useGitHubPackages = $false
             }
           }
           
-          # LOCAL mode (bootstrap or fallback)
           if (-not $useGitHubPackages) {
-            Write-Output ""
-            Write-Output "📦 Importing LOCAL K.PSGallery.PackageRepoProvider (bootstrap/breaking-changes mode)..."
-            Write-Output "   Path: ./K.PSGallery.PackageRepoProvider.psd1"
-            Write-Output "   ℹ️  Using current Git checkout (self-hosting)"
-            
-            # Install GitHub provider manually (pluggable architecture - no RequiredModules)
-            Write-Output ""
-            Write-Output "🔧 Installing GitHub provider module..."
-            $secureToken = ConvertTo-SecureString $env:GITHUB_TOKEN -AsPlainText -Force
-            $credential = [PSCredential]::new('token', $secureToken)
-            
-            # Register temporary repository for provider installation
-            Register-PSResourceRepository -Name 'GrexyLoco-Bootstrap' `
-              -Uri 'https://nuget.pkg.github.com/GrexyLoco/index.json' `
-              -Trusted `
-              -Verbose
-            
-            # Install GitHub provider module
-            Install-PSResource -Name 'K.PSGallery.PackageRepoProvider.GitHub' `
-              -Repository 'GrexyLoco-Bootstrap' `
-              -Scope CurrentUser `
-              -TrustRepository `
-              -Credential $credential `
-              -Verbose
-            
-            Write-Output "✅ GitHub provider installed"
-            
-            # Import PackageRepoProvider (providers loaded dynamically when needed)
-            Import-Module ./K.PSGallery.PackageRepoProvider.psd1 -Force -Verbose
-            Write-Output "✅ PackageRepoProvider loaded (providers will be loaded dynamically)"
+            Write-Host "🏗️  Loading from LOCAL Git checkout (bootstrap mode)..."
+            ./.github/scripts/Install-FromLocal.ps1 -SecureToken $secureToken
           }
           
-          # Use PackageRepoProvider public API (provider routing is transparent!)
-          # Register GitHub Packages repository
-          $repoName = "1d70f-Repo"
-          $registryUri = "https://nuget.pkg.github.com/GrexyLoco/index.json"
-          
-          Write-Output ""
-          Write-Output "🔧 Registering repository: $repoName"
-          Write-Output "   URI: $registryUri"
-          Register-PackageRepo -RepositoryName $repoName -RegistryUri $registryUri -Token $env:GITHUB_TOKEN -Trusted
-          
-          # Publish using our own PackageRepoProvider
-          # The module automatically builds .nupkg to bypass Author Runspace Bug
-          Write-Output ""
-          Write-Output "📤 Publishing K.PSGallery.PackageRepoProvider to GitHub Packages..."
-          Write-Output "   Module will automatically build .nupkg to bypass Author Runspace Bug"
-          
-          try {
-            Publish-Package -RepositoryName $repoName -Token $env:GITHUB_TOKEN -Verbose
-            
-            Write-Output ""
-            Write-Output "✅ Module published successfully to GitHub Packages!"
-            
-            # GitHub Actions Step Summary
-            $summary = @"
-          ## ✅ Publish Successful
-          
-          **Module:** ``K.PSGallery.PackageRepoProvider``
-          
-          | Property | Value |
-          |----------|-------|
-          | 🎯 Repository | ``$repoName`` |
-          | 🔗 Registry | ``$registryUri`` |
-          | 🔄 Load Mode | $(if ($useGitHubPackages) { '📦 GitHub Packages (stable)' } else { '🏗️ LOCAL Bootstrap' }) |
-          | 📦 Build Mode | ✨ .nupkg Pre-Build (Author Bug Fix) |
-          | 📦 Package URL | [View Package](https://github.com/GrexyLoco?tab=packages) |
-          
-          ### 🚀 Installation
-          
-          ```powershell
-          # Register repository
-          Register-PackageRepo -RepositoryName '$repoName' -RegistryUri '$registryUri' -Token `$env:GITHUB_TOKEN -Trusted
-          
-          # Install module
-          Install-PackageModule -RepositoryName '$repoName' -ModuleName 'K.PSGallery.PackageRepoProvider' -Token `$env:GITHUB_TOKEN
-          ```
-          
-          ### 📋 Version Options
-          
-          ```powershell
-          # Latest version
-          Install-PackageModule -RepositoryName '$repoName' -ModuleName 'K.PSGallery.PackageRepoProvider' -Token `$env:GITHUB_TOKEN
-          
-          # Latest 1.x.x
-          Install-PackageModule -RepositoryName '$repoName' -ModuleName 'K.PSGallery.PackageRepoProvider' -Version '1' -Token `$env:GITHUB_TOKEN
-          
-          # Specific version
-          Install-PackageModule -RepositoryName '$repoName' -ModuleName 'K.PSGallery.PackageRepoProvider' -Version '0.1.0' -Token `$env:GITHUB_TOKEN
-          ```
-          "@
-            
-            $summary | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8
-            Write-Output "📊 Summary written to GitHub Actions UI"
-          }
-          catch {
-            Write-Output ""
-            Write-Output "❌ PUBLISH FAILED"
-            Write-Output "💥 Error: $($_.Exception.Message)"
-            
-            # GitHub Actions Step Summary - Error
-            $errorSummary = @"
-          ## ❌ Publish Failed
-          
-          **Error:** ``$($_.Exception.Message)``
-          
-          ### 🔍 Diagnostics
-          
-          | Property | Value |
-          |----------|-------|
-          | 🎯 Repository | ``$repoName`` |
-          | 🔗 Registry | ``$registryUri`` |
-          | 🔄 Load Mode | $(if ($useGitHubPackages) { '📦 GitHub Packages' } else { '🏗️ LOCAL Bootstrap' }) |
-          | 🔑 Auth Token | $(if ($env:GITHUB_TOKEN) { '✅ Present' } else { '❌ Missing' }) |
-          
-          ### 💡 Common Issues
-          
-          - Check ``GITHUB_TOKEN`` has ``packages:write`` permission
-          - Verify module manifest is valid: ``Test-ModuleManifest``
-          - Ensure ``PSResourceGet`` is installed: ``Get-Module PSResourceGet -ListAvailable``
-          - Check repository registration: ``Get-PSResourceRepository``
-          - Review [PSResourceGet Documentation](https://learn.microsoft.com/powershell/module/microsoft.powershell.psresourceget/)
-          
-          ### 📋 Troubleshooting Steps
-          
-          1. **Verify PSResourceGet version:**
-             ``````powershell
-             Get-Module Microsoft.PowerShell.PSResourceGet -ListAvailable | Select-Object Version
-             ``````
-          
-          2. **Check registered repositories:**
-             ``````powershell
-             Get-PSResourceRepository
-             ``````
-          
-          3. **Validate manifest:**
-             ``````powershell
-             Test-ModuleManifest -Path ./K.PSGallery.PackageRepoProvider.psd1
-             ``````
-          "@
-            
-            $errorSummary | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8
-            Write-Output "📊 Error summary written to GitHub Actions UI"
-            throw
-          }
+          # Publish module
+          ./.github/scripts/Publish-ToGitHubPackages.ps1 -SecureToken $secureToken -UseGitHubPackages $useGitHubPackages
+
