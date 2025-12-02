@@ -1,21 +1,19 @@
 @{
     RootModule = 'K.PSGallery.PackageRepoProvider.psm1'
     ModuleVersion = '1.0.0'
-    GUID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
-    Author = 'GrexyLoco'
-    CompanyName = 'GrexyLoco'
-    Copyright = '(c) 2025 GrexyLoco. All rights reserved.'
-    Description = 'Aggregator/Facade module for private package repositories with automatic provider routing (GitHub, GitLab)'
+    CompatiblePSEditions = @('Desktop', 'Core')
+    GUID = 'f8d2c4a6-9b3e-4f1a-8d5c-7e2b9a4f6c8d'
+    Author = '1d70f'
+    CompanyName = '1d70f'
+    Copyright = '(c) 2025 1d70f. All rights reserved.'
+    Description = 'Aggregator/Facade module for private package repositories with automatic provider routing. Supports GitHub Packages and GitLab Package Registry with pluggable provider architecture.'
     PowerShellVersion = '7.0'
-    
-    # RequiredModules intentionally omitted to support pluggable provider architecture.
-    # Providers (GitHub, GitLab) are loaded dynamically via Get-RepoProvider when needed.
-    # This allows users to install only the providers they use.
-    
-    # Script files (.ps1) that are run in the caller's environment prior to importing this module.
-    # SafeLogging.ps1 provides logging abstraction and must be loaded before the main module
+    RequiredModules = @()
+    RequiredAssemblies = @()
     ScriptsToProcess = @('Private/SafeLogging.ps1')
-
+    TypesToProcess = @()
+    FormatsToProcess = @()
+    NestedModules = @()
     FunctionsToExport = @(
         'Register-PackageRepo',
         'Publish-Package',
@@ -24,18 +22,21 @@
         'Remove-PackageRepo',
         'Get-PackageRepoProvider'
     )
-    
     CmdletsToExport = @()
     VariablesToExport = @()
     AliasesToExport = @()
-    
     PrivateData = @{
         PSData = @{
-            Tags = @('PowerShell', 'PackageManagement', 'NuGet', 'GitHub', 'GitLab', 'PSGallery')
+            Tags = @('PowerShell', 'PackageManagement', 'NuGet', 'GitHub', 'GitLab', 'PSGallery', 'Provider', 'Packages')
             LicenseUri = 'https://github.com/GrexyLoco/K.PSGallery.PackageRepoProvider/blob/main/LICENSE'
             ProjectUri = 'https://github.com/GrexyLoco/K.PSGallery.PackageRepoProvider'
-            ReleaseNotes = 'Initial release with provider routing and public API'
-            # Workaround: Explicit Authors for NuGet package generation (Publish-PSResource bug?)
+            ReleaseNotes = @'
+## Version 1.0.0
+- Initial release with provider routing and public API
+- Support for GitHub Packages and GitLab Package Registry
+- Pluggable provider architecture for extensibility
+'@
         }
     }
+    HelpInfoURI = 'https://github.com/GrexyLoco/K.PSGallery.PackageRepoProvider/blob/main/README.md'
 }
