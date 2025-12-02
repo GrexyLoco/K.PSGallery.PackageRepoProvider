@@ -111,7 +111,9 @@ function Publish-Package {
     
     # 2. Build .nupkg if publishing from path (avoids Author Runspace Bug)
     # Skip if -NupkgPath already provided or -SkipNupkgBuild specified
+    # Note: Using internal $effectiveNupkgPath to avoid ValidateScript on parameter assignment
     $cleanupNupkg = $false
+    $effectiveNupkgPath = $NupkgPath
     if (-not $PSBoundParameters.ContainsKey('NupkgPath') -and -not $SkipNupkgBuild) {
         Write-SafeInfoLog -Message "Building .nupkg to bypass Author Runspace Bug" -Additional @{
             ModulePath = $ModulePath
@@ -139,9 +141,9 @@ function Publish-Package {
                 throw "Failed to create .nupkg file in $artifactsDir"
             }
             
-            $NupkgPath = $nupkgFile.FullName
+            $effectiveNupkgPath = $nupkgFile.FullName
             Write-SafeInfoLog -Message ".nupkg created successfully" -Additional @{
-                NupkgPath = $NupkgPath
+                NupkgPath = $effectiveNupkgPath
                 Size = "$([math]::Round($nupkgFile.Length / 1KB, 2)) KB"
             }
         }
@@ -170,11 +172,11 @@ function Publish-Package {
     try {
         if ($PSBoundParameters.ContainsKey('NupkgPath') -or -not $SkipNupkgBuild) {
             # Nupkg mode: Pass pre-built .nupkg file
-            $providerParams['NupkgPath'] = $NupkgPath
+            $providerParams['NupkgPath'] = $effectiveNupkgPath
             Write-SafeInfoLog -Message "Publishing .nupkg to repository '$RepositoryName'" -Additional @{
                 Repository = $RepositoryName
                 Provider = $provider
-                NupkgPath = $NupkgPath
+                NupkgPath = $effectiveNupkgPath
             }
         }
         else {

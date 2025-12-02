@@ -54,6 +54,7 @@ Describe 'Publish-Package' {
                 # Test constants
                 $TestRepoName = "TestRepo"
                 $TestProviderName = "GitHub"
+                $TestNupkgPath = Join-Path ([System.IO.Path]::GetTempPath()) "TestModule.1.0.0.nupkg"
                 
                 # Mock provider resolution and loading
                 Mock Get-RegisteredRepoProvider { return $TestProviderName }
@@ -62,10 +63,21 @@ Describe 'Publish-Package' {
                 }
                 Mock Resolve-ModulePath { return $PWD.Path }
                 
+                # Mock Compress-PSResource to avoid actual compression
+                Mock Compress-PSResource { }
+                
+                # Mock Get-ChildItem to return a fake .nupkg file
+                Mock Get-ChildItem {
+                    return [PSCustomObject]@{
+                        FullName = $TestNupkgPath
+                        Length = 1024
+                    }
+                } -ParameterFilter { $Filter -eq '*.nupkg' }
+                
                 # Create and mock the provider's Invoke-Publish function
                 if (-not (Get-Command -Name 'GitHub\Invoke-Publish' -ErrorAction SilentlyContinue)) {
                     New-Item -Path Function:\ -Name 'GitHub\Invoke-Publish' -Value {
-                        param($RepositoryName, $ModulePath, $Credential)
+                        param($RepositoryName, $NupkgPath, $Credential)
                     } -Force
                 }
                 Mock GitHub\Invoke-Publish { }
@@ -87,6 +99,7 @@ Describe 'Publish-Package' {
                 # Test constants
                 $TestRepoName = "TestRepo"
                 $TestProviderName = "GitHub"
+                $TestNupkgPath = Join-Path ([System.IO.Path]::GetTempPath()) "TestModule.1.0.0.nupkg"
                 
                 # Mock provider resolution and loading
                 Mock Get-RegisteredRepoProvider { return $TestProviderName }
@@ -95,10 +108,21 @@ Describe 'Publish-Package' {
                 }
                 Mock Resolve-ModulePath { return $PWD.Path }
                 
+                # Mock Compress-PSResource to avoid actual compression
+                Mock Compress-PSResource { }
+                
+                # Mock Get-ChildItem to return a fake .nupkg file
+                Mock Get-ChildItem {
+                    return [PSCustomObject]@{
+                        FullName = $TestNupkgPath
+                        Length = 1024
+                    }
+                } -ParameterFilter { $Filter -eq '*.nupkg' }
+                
                 # Create and mock the provider's Invoke-Publish function
                 if (-not (Get-Command -Name 'GitHub\Invoke-Publish' -ErrorAction SilentlyContinue)) {
                     New-Item -Path Function:\ -Name 'GitHub\Invoke-Publish' -Value {
-                        param($RepositoryName, $ModulePath, $Credential)
+                        param($RepositoryName, $NupkgPath, $Credential)
                     } -Force
                 }
                 Mock GitHub\Invoke-Publish { }
