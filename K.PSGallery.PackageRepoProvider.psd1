@@ -1,6 +1,6 @@
 @{
     RootModule = 'K.PSGallery.PackageRepoProvider.psm1'
-    ModuleVersion = '1.0.1'
+    ModuleVersion = '1.0.2'
     CompatiblePSEditions = @('Desktop', 'Core')
     GUID = 'f8d2c4a6-9b3e-4f1a-8d5c-7e2b9a4f6c8d'
     Author = '1d70f'
