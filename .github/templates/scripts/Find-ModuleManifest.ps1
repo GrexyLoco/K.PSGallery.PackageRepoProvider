@@ -110,13 +110,16 @@ if ($exactManifestExists) {
 Write-Verbose "Validating manifest: $($result.ManifestPath)"
 
 try {
-    # Test if it's a valid PowerShell data file
-    $manifestData = Test-ModuleManifest -Path $result.ManifestPath -ErrorAction Stop -WarningAction SilentlyContinue
+    # First: Test if it's valid PowerShell syntax
+    $null = Test-ModuleManifest -Path $result.ManifestPath -ErrorAction Stop -WarningAction SilentlyContinue
+    
+    # Second: Load raw manifest data (Import-PowerShellDataFile is more reliable than Test-ModuleManifest for properties)
+    $manifestData = Import-PowerShellDataFile -Path $result.ManifestPath -ErrorAction Stop
     
     # Check for essential module properties
-    $hasModuleVersion = $null -ne $manifestData.ModuleVersion
+    $hasModuleVersion = -not [string]::IsNullOrWhiteSpace($manifestData.ModuleVersion)
     $hasRootModule = -not [string]::IsNullOrWhiteSpace($manifestData.RootModule)
-    $hasGuid = $null -ne $manifestData.Guid
+    $hasGuid = -not [string]::IsNullOrWhiteSpace($manifestData.GUID)
     
     if (-not $hasModuleVersion) {
         $result.Errors += "Manifest missing ModuleVersion"
@@ -131,8 +134,10 @@ try {
     }
     
     # Check if module name matches (if we used fallback discovery)
-    if ($result.ValidationMethod -eq 'Fallback' -and $manifestData.Name -ne $ModuleName) {
-        $warnMsg = "Manifest module name '$($manifestData.Name)' does not match expected name '$ModuleName'"
+    # Note: Raw manifest doesn't have a 'Name' property, so we check filename instead
+    $manifestBaseName = [System.IO.Path]::GetFileNameWithoutExtension($result.ManifestPath)
+    if ($result.ValidationMethod -eq 'Fallback' -and $manifestBaseName -ne $ModuleName) {
+        $warnMsg = "Manifest filename '$manifestBaseName.psd1' does not match expected name '$ModuleName.psd1'"
         $result.Warnings += $warnMsg
         
         if ($Strict) {
