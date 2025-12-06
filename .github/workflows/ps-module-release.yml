@@ -406,8 +406,7 @@ jobs:
             -ModuleName "${{ needs.quality-gate.outputs.module-name }}" `
             -NewVersion "${{ needs.prepare-release.outputs.new-version }}" `
             -GitHubToken $env:GITHUB_TOKEN `
-            -RepositoryOwner "${{ github.repository_owner }}" `
-            -DebugMode  # 🐛 TEMP: Remove after debugging
+            -RepositoryOwner "${{ github.repository_owner }}"
 
       # ─────────────────────────────────────────────────────────────────────
       # 📣 Notify K.PSGallery Pipeline (configurable via input/env/default)
