@@ -14,7 +14,7 @@
     TypesToProcess = @()
     FormatsToProcess = @()
     NestedModules = @()
-    FunctionsToExport = @(ujj
+    FunctionsToExport = @(
         'Register-PackageRepo',
         'Publish-Package',
         'Install-PackageModule',
