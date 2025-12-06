@@ -44,8 +44,115 @@ param(
     [string]$GitHubToken,
     
     [Parameter(Mandatory = $true)]
-    [string]$RepositoryOwner
+    [string]$RepositoryOwner,
+    
+    # 🔧 DEBUG: Set to $true to enable detailed diagnostics (remove after debugging)
+    [Parameter()]
+    [switch]$DebugMode = $false
 )
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 🐛 DEBUG FUNCTIONS (set $DebugMode = $true to enable)
+# ═══════════════════════════════════════════════════════════════════════════
+function Write-DebugInfo {
+    param([string]$Message)
+    if ($DebugMode) {
+        Write-Output "🐛 DEBUG: $Message"
+        Write-Output "🐛 $Message" >> $env:GITHUB_STEP_SUMMARY
+    }
+}
+
+function Show-ManifestDebugInfo {
+    param([string]$Path, [string]$Context)
+    if (-not $DebugMode) { return }
+    
+    Write-Output ""
+    Write-Output "═══════════════════════════════════════════════════════════════"
+    Write-Output "🐛 DEBUG: Manifest Analysis - $Context"
+    Write-Output "═══════════════════════════════════════════════════════════════"
+    Write-Output "📁 Path: $Path"
+    Write-Output "📁 Exists: $(Test-Path $Path)"
+    Write-Output "📁 Working Dir: $(Get-Location)"
+    Write-Output ""
+    
+    # List directory contents
+    Write-Output "📂 Directory Contents:"
+    Get-ChildItem -Path (Split-Path $Path -Parent -ErrorAction SilentlyContinue) -ErrorAction SilentlyContinue | 
+        ForEach-Object { Write-Output "   - $($_.Name)" }
+    Write-Output ""
+    
+    # Find all PSD1 files
+    Write-Output "📋 All PSD1 files in current directory:"
+    Get-ChildItem -Path '.' -Filter '*.psd1' -Recurse -Depth 2 -ErrorAction SilentlyContinue | 
+        ForEach-Object { Write-Output "   - $($_.FullName)" }
+    Write-Output ""
+    
+    # Try to read manifest
+    $psd1File = Get-ChildItem -Path $Path -Filter '*.psd1' -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $psd1File) {
+        $psd1File = Get-Item "$Path.psd1" -ErrorAction SilentlyContinue
+    }
+    if (-not $psd1File -and (Test-Path $Path)) {
+        $psd1File = Get-ChildItem -Path $Path -Filter '*.psd1' -ErrorAction SilentlyContinue | Select-Object -First 1
+    }
+    
+    if ($psd1File) {
+        Write-Output "📄 Found Manifest: $($psd1File.FullName)"
+        try {
+            $manifest = Test-ModuleManifest -Path $psd1File.FullName -ErrorAction Stop
+            Write-Output "   ✅ Author: '$($manifest.Author)'"
+            Write-Output "   ✅ Version: '$($manifest.Version)'"
+            Write-Output "   ✅ Description: '$($manifest.Description.Substring(0, [Math]::Min(50, $manifest.Description.Length)))...'"
+            Write-Output "   ✅ RootModule: '$($manifest.RootModule)'"
+        }
+        catch {
+            Write-Output "   ❌ Test-ModuleManifest failed: $($_.Exception.Message)"
+            Write-Output "   📝 Raw content (first 20 lines):"
+            Get-Content $psd1File.FullName -TotalCount 20 | ForEach-Object { Write-Output "      $_" }
+        }
+    }
+    else {
+        Write-Output "❌ No PSD1 file found at: $Path"
+    }
+    Write-Output ""
+}
+
+function Show-InstalledModuleDebugInfo {
+    param([string]$ModuleName)
+    if (-not $DebugMode) { return }
+    
+    Write-Output ""
+    Write-Output "═══════════════════════════════════════════════════════════════"
+    Write-Output "🐛 DEBUG: Installed Module Check - $ModuleName"
+    Write-Output "═══════════════════════════════════════════════════════════════"
+    
+    Write-Output "📁 PSModulePath:"
+    $env:PSModulePath -split [IO.Path]::PathSeparator | ForEach-Object { Write-Output "   - $_" }
+    Write-Output ""
+    
+    $installedModule = Get-Module -Name $ModuleName -ListAvailable -ErrorAction SilentlyContinue
+    if ($installedModule) {
+        Write-Output "✅ Module found in module path:"
+        $installedModule | ForEach-Object {
+            Write-Output "   - Version: $($_.Version)"
+            Write-Output "   - Path: $($_.ModuleBase)"
+            $manifestPath = Join-Path $_.ModuleBase "$ModuleName.psd1"
+            if (Test-Path $manifestPath) {
+                try {
+                    $m = Test-ModuleManifest -Path $manifestPath -ErrorAction Stop
+                    Write-Output "   - Author in installed: '$($m.Author)'"
+                }
+                catch {
+                    Write-Output "   - ❌ Manifest error: $($_.Exception.Message)"
+                }
+            }
+        }
+    }
+    else {
+        Write-Output "❌ Module not found in any PSModulePath"
+    }
+    Write-Output ""
+}
 
 # ═══════════════════════════════════════════════════════════════════════════
 # 📋 Summary Header
@@ -107,9 +214,17 @@ function Install-PackageRepoProvider {
 # ═══════════════════════════════════════════════════════════════════════════
 # 🚀 Main Publishing Logic
 # ═══════════════════════════════════════════════════════════════════════════
+
+# 🐛 DEBUG: Show initial state
+Write-DebugInfo "Starting publish for $ModuleName v$NewVersion"
+Show-ManifestDebugInfo -Path '.' -Context 'Initial Working Directory'
+
 try {
     # Step 1: Install PackageRepoProvider from GitHub Packages
     Install-PackageRepoProvider -Token $GitHubToken -Owner $RepositoryOwner
+    
+    # 🐛 DEBUG: Check installed module
+    Show-InstalledModuleDebugInfo -ModuleName 'K.PSGallery.PackageRepoProvider'
     
     Write-Output "📝 Registering repository: $repoName"
     
@@ -157,6 +272,11 @@ catch {
         # Find module path (cross-platform)
         $moduleSubPath = Join-Path -Path '.' -ChildPath $ModuleName
         $modulePath = if (Test-Path $moduleSubPath) { $moduleSubPath } else { '.' }
+        
+        # 🐛 DEBUG: Show what path we're using for fallback
+        Write-DebugInfo "Fallback modulePath resolved to: $modulePath"
+        Write-DebugInfo "moduleSubPath ($ModuleName) exists: $(Test-Path $moduleSubPath)"
+        Show-ManifestDebugInfo -Path $modulePath -Context 'Fallback Publish Path'
         
         # Publish module
         Publish-PSResource `
