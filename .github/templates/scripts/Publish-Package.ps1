@@ -44,115 +44,8 @@ param(
     [string]$GitHubToken,
     
     [Parameter(Mandatory = $true)]
-    [string]$RepositoryOwner,
-    
-    # 🔧 DEBUG: Set to $true to enable detailed diagnostics (remove after debugging)
-    [Parameter()]
-    [switch]$DebugMode = $false
+    [string]$RepositoryOwner
 )
-
-# ═══════════════════════════════════════════════════════════════════════════
-# 🐛 DEBUG FUNCTIONS (set $DebugMode = $true to enable)
-# ═══════════════════════════════════════════════════════════════════════════
-function Write-DebugInfo {
-    param([string]$Message)
-    if ($DebugMode) {
-        Write-Output "🐛 DEBUG: $Message"
-        Write-Output "🐛 $Message" >> $env:GITHUB_STEP_SUMMARY
-    }
-}
-
-function Show-ManifestDebugInfo {
-    param([string]$Path, [string]$Context)
-    if (-not $DebugMode) { return }
-    
-    Write-Output ""
-    Write-Output "═══════════════════════════════════════════════════════════════"
-    Write-Output "🐛 DEBUG: Manifest Analysis - $Context"
-    Write-Output "═══════════════════════════════════════════════════════════════"
-    Write-Output "📁 Path: $Path"
-    Write-Output "📁 Exists: $(Test-Path $Path)"
-    Write-Output "📁 Working Dir: $(Get-Location)"
-    Write-Output ""
-    
-    # List directory contents
-    Write-Output "📂 Directory Contents:"
-    Get-ChildItem -Path (Split-Path $Path -Parent -ErrorAction SilentlyContinue) -ErrorAction SilentlyContinue | 
-        ForEach-Object { Write-Output "   - $($_.Name)" }
-    Write-Output ""
-    
-    # Find all PSD1 files
-    Write-Output "📋 All PSD1 files in current directory:"
-    Get-ChildItem -Path '.' -Filter '*.psd1' -Recurse -Depth 2 -ErrorAction SilentlyContinue | 
-        ForEach-Object { Write-Output "   - $($_.FullName)" }
-    Write-Output ""
-    
-    # Try to read manifest
-    $psd1File = Get-ChildItem -Path $Path -Filter '*.psd1' -ErrorAction SilentlyContinue | Select-Object -First 1
-    if (-not $psd1File) {
-        $psd1File = Get-Item "$Path.psd1" -ErrorAction SilentlyContinue
-    }
-    if (-not $psd1File -and (Test-Path $Path)) {
-        $psd1File = Get-ChildItem -Path $Path -Filter '*.psd1' -ErrorAction SilentlyContinue | Select-Object -First 1
-    }
-    
-    if ($psd1File) {
-        Write-Output "📄 Found Manifest: $($psd1File.FullName)"
-        try {
-            $manifest = Test-ModuleManifest -Path $psd1File.FullName -ErrorAction Stop
-            Write-Output "   ✅ Author: '$($manifest.Author)'"
-            Write-Output "   ✅ Version: '$($manifest.Version)'"
-            Write-Output "   ✅ Description: '$($manifest.Description.Substring(0, [Math]::Min(50, $manifest.Description.Length)))...'"
-            Write-Output "   ✅ RootModule: '$($manifest.RootModule)'"
-        }
-        catch {
-            Write-Output "   ❌ Test-ModuleManifest failed: $($_.Exception.Message)"
-            Write-Output "   📝 Raw content (first 20 lines):"
-            Get-Content $psd1File.FullName -TotalCount 20 | ForEach-Object { Write-Output "      $_" }
-        }
-    }
-    else {
-        Write-Output "❌ No PSD1 file found at: $Path"
-    }
-    Write-Output ""
-}
-
-function Show-InstalledModuleDebugInfo {
-    param([string]$ModuleName)
-    if (-not $DebugMode) { return }
-    
-    Write-Output ""
-    Write-Output "═══════════════════════════════════════════════════════════════"
-    Write-Output "🐛 DEBUG: Installed Module Check - $ModuleName"
-    Write-Output "═══════════════════════════════════════════════════════════════"
-    
-    Write-Output "📁 PSModulePath:"
-    $env:PSModulePath -split [IO.Path]::PathSeparator | ForEach-Object { Write-Output "   - $_" }
-    Write-Output ""
-    
-    $installedModule = Get-Module -Name $ModuleName -ListAvailable -ErrorAction SilentlyContinue
-    if ($installedModule) {
-        Write-Output "✅ Module found in module path:"
-        $installedModule | ForEach-Object {
-            Write-Output "   - Version: $($_.Version)"
-            Write-Output "   - Path: $($_.ModuleBase)"
-            $manifestPath = Join-Path $_.ModuleBase "$ModuleName.psd1"
-            if (Test-Path $manifestPath) {
-                try {
-                    $m = Test-ModuleManifest -Path $manifestPath -ErrorAction Stop
-                    Write-Output "   - Author in installed: '$($m.Author)'"
-                }
-                catch {
-                    Write-Output "   - ❌ Manifest error: $($_.Exception.Message)"
-                }
-            }
-        }
-    }
-    else {
-        Write-Output "❌ Module not found in any PSModulePath"
-    }
-    Write-Output ""
-}
 
 # ═══════════════════════════════════════════════════════════════════════════
 # 📋 Summary Header
@@ -214,17 +107,9 @@ function Install-PackageRepoProvider {
 # ═══════════════════════════════════════════════════════════════════════════
 # 🚀 Main Publishing Logic
 # ═══════════════════════════════════════════════════════════════════════════
-
-# 🐛 DEBUG: Show initial state
-Write-DebugInfo "Starting publish for $ModuleName v$NewVersion"
-Show-ManifestDebugInfo -Path '.' -Context 'Initial Working Directory'
-
 try {
     # Step 1: Install PackageRepoProvider from GitHub Packages
     Install-PackageRepoProvider -Token $GitHubToken -Owner $RepositoryOwner
-    
-    # 🐛 DEBUG: Check installed module
-    Show-InstalledModuleDebugInfo -ModuleName 'K.PSGallery.PackageRepoProvider'
     
     Write-Output "📝 Registering repository: $repoName"
     
@@ -269,31 +154,32 @@ catch {
         Unregister-PSResourceRepository -Name $repoName -ErrorAction SilentlyContinue
         Register-PSResourceRepository -Name $repoName -Uri $registryUri -Trusted -ErrorAction Stop
         
-        # Find the EXACT module manifest file (not just any PSD1)
-        # This is critical when multiple PSD1 files exist (e.g., PSScriptAnalyzerSettings.psd1)
-        $manifestFile = Get-ChildItem -Path '.' -Filter "$ModuleName.psd1" -File -ErrorAction SilentlyContinue |
-            Select-Object -First 1
+        # Find module manifest using robust discovery
+        $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+        $findManifestScript = Join-Path $scriptDir 'Find-ModuleManifest.ps1'
         
-        if (-not $manifestFile) {
-            # Fallback: check subdirectory
+        if (-not (Test-Path $findManifestScript)) {
+            Write-Warning "Find-ModuleManifest.ps1 not found, using legacy discovery"
             $moduleSubPath = Join-Path -Path '.' -ChildPath $ModuleName
-            if (Test-Path $moduleSubPath) {
-                $manifestFile = Get-ChildItem -Path $moduleSubPath -Filter "$ModuleName.psd1" -File -ErrorAction SilentlyContinue |
-                    Select-Object -First 1
+            $modulePath = if (Test-Path $moduleSubPath) { $moduleSubPath } else { '.' }
+        } else {
+            $manifestResult = & $findManifestScript -ModuleName $ModuleName -SearchPath '.' -Verbose
+            
+            if (-not $manifestResult.IsValid) {
+                $errorMsg = "Manifest validation failed:`n" + ($manifestResult.Errors -join "`n")
+                throw $errorMsg
             }
+            
+            if ($manifestResult.Warnings.Count -gt 0) {
+                foreach ($warning in $manifestResult.Warnings) {
+                    Write-Warning $warning
+                }
+            }
+            
+            # Use directory containing the manifest
+            $modulePath = Split-Path -Parent $manifestResult.ManifestPath
+            Write-Output "✅ Using manifest: $($manifestResult.ManifestPath) (Method: $($manifestResult.ValidationMethod))"
         }
-        
-        if (-not $manifestFile) {
-            throw "Module manifest '$ModuleName.psd1' not found in current directory or '$ModuleName' subdirectory"
-        }
-        
-        # Use the directory containing the manifest
-        $modulePath = $manifestFile.DirectoryName
-        
-        # 🐛 DEBUG: Show what path we're using for fallback
-        Write-DebugInfo "Found manifest file: $($manifestFile.FullName)"
-        Write-DebugInfo "Fallback modulePath resolved to: $modulePath"
-        Show-ManifestDebugInfo -Path $modulePath -Context 'Fallback Publish Path'
         
         # Publish module
         Publish-PSResource `

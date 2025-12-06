@@ -191,30 +191,70 @@ Write-Output ""
 
 if ($ManifestPath) {
     $psd1Path = $ManifestPath
+    Write-Output "📄 Using explicit manifest path: $psd1Path"
 } else {
-    $psd1Files = Get-ChildItem -Path $ModulePath -Filter "*.psd1" -File -Recurse -Depth 1 |
-        Where-Object { $_.Name -notlike 'PSScriptAnalyzerSettings*' }
+    # Use robust manifest discovery
+    $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+    $findManifestScript = Join-Path $scriptDir 'Find-ModuleManifest.ps1'
     
-    if ($psd1Files.Count -eq 0) {
-        Write-ValidationError -Message "No .psd1 manifest file found in '$ModulePath'" -Field 'Manifest'
-        Write-Output ""
-        Write-Output "manifest-valid=false" >> $env:GITHUB_OUTPUT
-        Write-Output "error-count=1" >> $env:GITHUB_OUTPUT
-        Write-Output "warning-count=0" >> $env:GITHUB_OUTPUT
-        exit 1
-    }
-    
-    if ($psd1Files.Count -gt 1) {
-        Write-Output "📋 Found multiple .psd1 files, validating primary manifest..."
-        # Prefer manifest matching directory name
+    if (Test-Path $findManifestScript) {
+        Write-Output "🔍 Using Find-ModuleManifest for robust discovery..."
+        
+        # Extract module name from directory
         $dirName = (Get-Item $ModulePath).Name
-        $psd1Path = $psd1Files | Where-Object { $_.BaseName -eq $dirName } | Select-Object -First 1
-        if (-not $psd1Path) {
-            $psd1Path = $psd1Files | Select-Object -First 1
+        
+        $manifestResult = & $findManifestScript -ModuleName $dirName -SearchPath $ModulePath -Verbose
+        
+        # Report discovery warnings
+        if ($manifestResult.Warnings.Count -gt 0) {
+            foreach ($warning in $manifestResult.Warnings) {
+                Write-ValidationWarning -Message $warning -Field 'ManifestDiscovery'
+            }
         }
-        $psd1Path = $psd1Path.FullName
+        
+        # Check if discovery failed
+        if (-not $manifestResult.IsValid) {
+            foreach ($error in $manifestResult.Errors) {
+                Write-ValidationError -Message $error -Field 'ManifestDiscovery'
+            }
+            Write-Output ""
+            Write-Output "manifest-valid=false" >> $env:GITHUB_OUTPUT
+            Write-Output "error-count=$($manifestResult.Errors.Count)" >> $env:GITHUB_OUTPUT
+            Write-Output "warning-count=$($manifestResult.Warnings.Count)" >> $env:GITHUB_OUTPUT
+            exit 1
+        }
+        
+        $psd1Path = $manifestResult.ManifestPath
+        Write-Output "✅ Found manifest via $($manifestResult.ValidationMethod) discovery: $psd1Path"
+        
     } else {
-        $psd1Path = $psd1Files[0].FullName
+        # Fallback to legacy discovery
+        Write-Output "⚠️ Find-ModuleManifest.ps1 not found, using legacy discovery"
+        
+        $psd1Files = Get-ChildItem -Path $ModulePath -Filter "*.psd1" -File -Recurse -Depth 1 |
+            Where-Object { $_.Name -notlike 'PSScriptAnalyzerSettings*' }
+        
+        if ($psd1Files.Count -eq 0) {
+            Write-ValidationError -Message "No .psd1 manifest file found in '$ModulePath'" -Field 'Manifest'
+            Write-Output ""
+            Write-Output "manifest-valid=false" >> $env:GITHUB_OUTPUT
+            Write-Output "error-count=1" >> $env:GITHUB_OUTPUT
+            Write-Output "warning-count=0" >> $env:GITHUB_OUTPUT
+            exit 1
+        }
+        
+        if ($psd1Files.Count -gt 1) {
+            Write-Output "📋 Found multiple .psd1 files, validating primary manifest..."
+            # Prefer manifest matching directory name
+            $dirName = (Get-Item $ModulePath).Name
+            $psd1Path = $psd1Files | Where-Object { $_.BaseName -eq $dirName } | Select-Object -First 1
+            if (-not $psd1Path) {
+                $psd1Path = $psd1Files | Select-Object -First 1
+            }
+            $psd1Path = $psd1Path.FullName
+        } else {
+            $psd1Path = $psd1Files[0].FullName
+        }
     }
 }
 
