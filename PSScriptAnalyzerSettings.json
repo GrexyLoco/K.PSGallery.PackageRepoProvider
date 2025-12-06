@@ -1,0 +1,22 @@
+{
+  "ExcludeRules": [],
+  "IncludeRules": [
+    "*"
+  ],
+  "Rules": {
+    "PSAvoidUsingConvertToSecureStringWithPlainText": {
+      "Enable": true
+    },
+    "PSUseShouldProcessForStateChangingFunctions": {
+      "Enable": true
+    },
+    "PSAvoidOverwritingBuiltInCmdlets": {
+      "Enable": true
+    }
+  },
+  "Severity": [
+    "Error",
+    "Warning",
+    "Information"
+  ]
+}
