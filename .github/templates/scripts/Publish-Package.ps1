@@ -269,13 +269,30 @@ catch {
         Unregister-PSResourceRepository -Name $repoName -ErrorAction SilentlyContinue
         Register-PSResourceRepository -Name $repoName -Uri $registryUri -Trusted -ErrorAction Stop
         
-        # Find module path (cross-platform)
-        $moduleSubPath = Join-Path -Path '.' -ChildPath $ModuleName
-        $modulePath = if (Test-Path $moduleSubPath) { $moduleSubPath } else { '.' }
+        # Find the EXACT module manifest file (not just any PSD1)
+        # This is critical when multiple PSD1 files exist (e.g., PSScriptAnalyzerSettings.psd1)
+        $manifestFile = Get-ChildItem -Path '.' -Filter "$ModuleName.psd1" -File -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+        
+        if (-not $manifestFile) {
+            # Fallback: check subdirectory
+            $moduleSubPath = Join-Path -Path '.' -ChildPath $ModuleName
+            if (Test-Path $moduleSubPath) {
+                $manifestFile = Get-ChildItem -Path $moduleSubPath -Filter "$ModuleName.psd1" -File -ErrorAction SilentlyContinue |
+                    Select-Object -First 1
+            }
+        }
+        
+        if (-not $manifestFile) {
+            throw "Module manifest '$ModuleName.psd1' not found in current directory or '$ModuleName' subdirectory"
+        }
+        
+        # Use the directory containing the manifest
+        $modulePath = $manifestFile.DirectoryName
         
         # 🐛 DEBUG: Show what path we're using for fallback
+        Write-DebugInfo "Found manifest file: $($manifestFile.FullName)"
         Write-DebugInfo "Fallback modulePath resolved to: $modulePath"
-        Write-DebugInfo "moduleSubPath ($ModuleName) exists: $(Test-Path $moduleSubPath)"
         Show-ManifestDebugInfo -Path $modulePath -Context 'Fallback Publish Path'
         
         # Publish module
