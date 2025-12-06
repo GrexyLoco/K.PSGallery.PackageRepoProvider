@@ -19,7 +19,7 @@ Describe 'Import-PackageModule' {
             Mock Import-Module { }
             Mock Test-Path { return $true }
             
-            Import-PackageModule -ModulePath '/test/path'
+            Import-PackageModule -ModulePath '/test/path' 
             
             Should -Invoke Import-Module -Times 1 -ParameterFilter {
                 $Name -eq '/test/path'
